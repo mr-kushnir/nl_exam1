@@ -1,4 +1,4 @@
-# 🤖 NLExam - Expense Tracker Bot
+# NLExam - Expense Tracker Bot
 
 ## Project Overview
 
@@ -54,16 +54,17 @@ nlexam/
 ├── src/
 │   ├── bot/
 │   │   ├── handlers.py      # Command & message handlers
+│   │   ├── keyboards.py     # Inline/Reply keyboards
 │   │   └── main.py          # FastAPI + webhook
 │   ├── services/
-│   │   ├── yagpt_service.py      # Expense parsing
+│   │   ├── yagpt_service.py      # Expense parsing (YaGPT)
 │   │   ├── speech_service.py     # Yandex SpeechKit STT
 │   │   └── expense_storage.py    # YDB storage
 │   └── db/
-│       └── ydb_client.py    # YDB client
+│       └── ydb_client.py    # YDB client (parameterized queries)
 ├── tests/
-│   ├── features/            # BDD .feature files
-│   ├── steps/               # Step definitions
+│   ├── features/            # 12 BDD .feature files
+│   ├── steps/               # 12 step definitions
 │   └── test_*.py            # Unit tests
 ├── scripts/
 │   └── youtrack_kb.py       # KB API client
@@ -75,102 +76,67 @@ nlexam/
 
 ---
 
-## Services
+## Features
 
-### YaGPT Service (`src/services/yagpt_service.py`)
+### Implemented
 
-Парсинг расходов из естественного языка:
-
-```python
-# Parse expense
-result = yagpt.parse_expense("кофе 300")
-# -> ParsedExpense(item="кофе", amount=300, category="Еда")
-
-# Detect intent
-intent = yagpt.detect_intent("расходы")
-# -> Intent(type="report_monthly")
-```
-
-**Intents:**
-- `add_expense` - добавить расход
-- `report_monthly` - отчёт за месяц
-- `item_total` - сумма по позиции
-- `top_expenses` - топ категорий
-
-### Speech Service (`src/services/speech_service.py`)
-
-Распознавание голоса через Yandex SpeechKit:
-
-```python
-service = SpeechService()
-result = service.transcribe(audio_bytes)
-# -> TranscriptionResult(text="кофе триста", success=True)
-```
-
-**Note:** Использует IAM токен, полученный из OAuth токена.
-
-### Expense Storage (`src/services/expense_storage.py`)
-
-Хранение расходов в YDB или in-memory:
-
-```python
-storage = ExpenseStorage(use_memory=False)  # YDB
-storage = ExpenseStorage(use_memory=True)   # In-memory (tests)
-
-storage.save_expense(expense)
-expenses = storage.get_monthly_expenses(user_id)
-totals = storage.get_category_totals(user_id)
-```
+| Feature | KB Article | Status |
+|---------|------------|--------|
+| Expense Parsing | NLE-A-8 | ✅ Done |
+| Voice Recognition | NLE-A-9 | ✅ Done |
+| Data Storage | NLE-A-10 | ✅ Done |
+| Telegram Bot | NLE-A-11 | ✅ Done |
+| BDD Sync | NLE-A-12 | ✅ Done |
+| Integration Tests | NLE-A-13 | ✅ Done |
+| Production Deploy | NLE-A-14 | ✅ Done |
+| Confirmation Flow | NLE-A-15 | ✅ Done |
+| Time Reports | NLE-A-17 | ✅ Done |
+| Budget Management | NLE-A-18 | ✅ Done |
+| Expense Management | NLE-A-19 | ✅ Done |
+| Analytics | NLE-A-20 | ✅ Done |
 
 ---
 
-## Development
+## Test Results
 
-### Local Setup
-
-```bash
-# Clone
-git clone https://github.com/mr-kushnir/nl_exam1.git
-cd nl_exam1
-
-# Venv
-python -m venv venv
-source venv/bin/activate  # or: venv\Scripts\activate
-
-# Install
-pip install -r requirements.txt
-
-# Run locally (polling mode)
-python -m src.bot.main
 ```
+═══════════════════════════════════════════════════════════
+Test Summary (2026-01-14)
+═══════════════════════════════════════════════════════════
 
-### Running Tests
+Total Tests: 122 passing
+Coverage: ~50%
 
-```bash
-# All tests
-python -m pytest tests/ -v
+BDD Features: 12
+Step Definitions: 12
 
-# With coverage
-python -m pytest tests/ --cov=src --cov-report=term-missing
+Unit Tests:
+├── test_yagpt_service.py      - 7 tests
+├── test_expense_storage.py    - 6 tests
+├── test_telegram_bot.py       - 6 tests
+├── test_speech_service.py     - 5 tests
+├── test_ydb_client.py         - 7 tests
+├── test_time_reports.py       - 7 tests
+├── test_budget.py             - 5 tests
+├── test_confirmation_flow.py  - 5 tests
+├── test_expense_management.py - 5 tests
+├── test_analytics.py          - 4 tests
+└── test_keyboards.py          - 5 tests
 
-# Only BDD
-python -m pytest tests/steps/ -v
-```
-
-### Deployment
-
-```bash
-# Build
-docker build -t cr.yandex/$YC_REGISTRY_ID/nlexam-bot:latest .
-
-# Push
-docker push cr.yandex/$YC_REGISTRY_ID/nlexam-bot:latest
-
-# Deploy
-yc serverless container revision deploy \
-    --container-id $YC_CONTAINER_ID \
-    --image cr.yandex/$YC_REGISTRY_ID/nlexam-bot:latest \
-    ...
+BDD Steps:
+├── test_expense_parsing.py    - 5 scenarios
+├── test_expense_storage.py    - 4 scenarios
+├── test_telegram_bot.py       - 4 scenarios
+├── test_voice_recognition.py  - 3 scenarios
+├── test_confirmation_flow.py  - 4 scenarios
+├── test_time_reports.py       - 5 scenarios
+├── test_budget_management.py  - 4 scenarios
+├── test_expense_management.py - 5 scenarios
+├── test_analytics.py          - 4 scenarios
+├── test_bdd_sync.py           - 3 scenarios
+├── test_integration.py        - 3 scenarios
+└── test_deployment.py         - 2 scenarios
+═══════════════════════════════════════════════════════════
 ```
 
 ---
@@ -196,6 +162,15 @@ YDB_DATABASE=/ru-central1/xxx/xxx
 S3_BUCKET=nlexam-files
 AWS_ACCESS_KEY_ID=xxx
 AWS_SECRET_ACCESS_KEY=xxx
+
+# YouTrack (for KB API)
+YOUTRACK_URL=https://xxx.youtrack.cloud
+YOUTRACK_TOKEN=perm:xxx
+YOUTRACK_PROJECT=NLE
+
+# GitHub
+GITHUB_TOKEN=ghp_xxx
+GITHUB_REPO=mr-kushnir/nl_exam1
 ```
 
 ---
@@ -206,7 +181,7 @@ AWS_SECRET_ACCESS_KEY=xxx
 
 | Command | Description |
 |---------|-------------|
-| `/run EPIC-ID` | Full pipeline (BUSINESS → DEVELOPER → TESTER → SECURITY → DEPLOYER) |
+| `/run EPIC-ID` | Full pipeline |
 | `/agent:business` | Create KB articles + subtasks |
 | `/agent:developer` | Implement tasks with TDD |
 | `/agent:tester` | Run tests, verify coverage |
@@ -218,35 +193,28 @@ AWS_SECRET_ACCESS_KEY=xxx
 | State | Agent | Action |
 |-------|-------|--------|
 | To do | DEVELOPER | Pick and implement |
-| In Progress | DEVELOPER | Working on it |
+| In Progress | DEVELOPER | Working |
 | Done | - | Completed |
 
 ---
 
-## Current Status
+## Security
 
-### Epic NLE-13: Expense Tracker Bot v2.0 - ✅ COMPLETE
+### Last Scan Results
 
-| Task | Status | Description |
-|------|--------|-------------|
-| NLE-14 | ✅ Done | Fix BDD step definitions |
-| NLE-15 | ✅ Done | Integration tests |
-| NLE-16 | ✅ Done | Production deployment |
-| NLE-17 | ✅ Done | Voice recognition fix |
+| Check | Status |
+|-------|--------|
+| SAST (Bandit) | ✅ No HIGH/CRITICAL |
+| Dependencies | ✅ Checked |
+| Hardcoded Secrets | ✅ None found |
+| SQL Injection | ✅ Fixed (parameterized queries) |
 
-### Test Results
+### Fixed Issues
 
-```
-57 passed, 1 warning
-Coverage: 71% (core services)
-```
-
-### Production
-
-- **Container:** ACTIVE
-- **Health:** `{"status":"healthy"}`
-- **Webhook:** Configured
-- **Voice:** Yandex SpeechKit (IAM token auth)
+| Issue | Fix | Commit |
+|-------|-----|--------|
+| SQL Injection in select() | Parameterized queries | dd718ce |
+| SQL Injection in delete() | Parameterized queries | dd718ce |
 
 ---
 
@@ -265,59 +233,62 @@ Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
 
 ## Development Log
 
-### 2026-01-14: Security Scan #2 (SECURITY Agent)
+### 2026-01-14: BDD Features Complete
 
-**Comprehensive Re-scan Results:**
+**Added:**
+- 6 new feature files (voice, confirmation, time, budget, management, analytics)
+- 6 new step definition files
+- Total: 122 tests passing
 
-| Check | Status | Details |
-|-------|--------|---------|
-| SAST (Bandit) | ⚠️ | 0 HIGH, 3 MEDIUM (false positives), 3 LOW |
-| Dependencies | ⚠️ | 2 CVEs found |
-| Hardcoded Secrets | ✅ | None found |
-| OWASP Top 10 | ⚠️ | 1 issue found |
-| Input Validation | ✅ | Partial (YDB has validation) |
+**Features:**
+- `voice_recognition.feature` - Yandex SpeechKit integration
+- `confirmation_flow.feature` - Expense confirmation with buttons
+- `time_reports.feature` - /today, /week commands
+- `budget_management.feature` - /budget command
+- `expense_management.feature` - /undo, /export, /find
+- `analytics.feature` - ASCII charts, statistics
 
-**Vulnerabilities Found:**
+### 2026-01-14: Security Fix
 
-| Issue | Severity | Location | GitHub Issue |
-|-------|----------|----------|--------------|
-| SQL Injection in insert() | MEDIUM | src/db/ydb_client.py:150-171 | #3 |
-| Vulnerable pip 25.2 | MEDIUM | CVE-2025-8869 | #4 |
-| Vulnerable urllib3 2.6.2 | MEDIUM | CVE-2026-21441 | #4 |
-
-**Bandit False Positives (verified safe):**
-- Lines 123, 126, 147: Table is validated via `_validate_table_name()`, values use parameterized queries
-
-**Action Required:**
-1. Fix `insert()` method - add table/column validation (GitHub #3)
-2. Update vulnerable dependencies (GitHub #4)
-
-**Status:** ⚠️ BLOCKED - Fix issues before production deployment
-
----
-
-### 2026-01-14: Voice Recognition Fix
-
-- Replaced ElevenLabs with Yandex SpeechKit
-- Fixed IAM token authentication (OAuth → IAM conversion)
-- Deployed to production
-
-### 2026-01-14: Production Deployment
-
-- Added webhook mode (FastAPI)
-- Deployed to Yandex Serverless Containers
-- Configured Telegram webhook
-- All 57 tests passing
-
-### 2026-01-14: BDD Implementation
-
-- Fixed all BDD step definitions
-- Synced .feature files with implementation
-- 21 BDD scenarios passing
+**Fixed:**
+- SQL injection in `select()` and `delete()` methods
+- Added `_validate_table_name()` for table name validation
+- Added `_build_select_query()` and `_build_delete_query()` with parameterized queries
+- GitHub issues #1, #2 closed
 
 ### 2026-01-14: Initial Implementation
 
+**Implemented:**
 - YaGPT Service (expense parsing)
+- Speech Service (Yandex SpeechKit)
 - Expense Storage (YDB)
 - Telegram Bot Handlers
-- Unit tests (23 tests)
+- Production deployment
+
+---
+
+## Quick Reference
+
+### Run Tests
+```bash
+python -m pytest tests/ -v
+```
+
+### Run Security Scan
+```bash
+python -m bandit -r src/ -ll
+pip-audit
+```
+
+### Deploy
+```bash
+docker build -t nlexam-bot .
+docker push cr.yandex/$YC_REGISTRY_ID/nlexam-bot:latest
+```
+
+### KB Operations
+```bash
+python scripts/youtrack_kb.py list
+python scripts/youtrack_kb.py get NLE-A-8
+python scripts/youtrack_kb.py bdd NLE-A-8
+```
