@@ -4,7 +4,8 @@ YDB Client for Yandex Database (Serverless)
 
 import os
 import json
-from typing import Optional, List, Dict, Any
+import re
+from typing import Optional, List, Dict, Any, Tuple
 
 # YDB SDK is optional - works without it for basic operations
 try:
@@ -89,7 +90,63 @@ class YDBClient:
             return results
         
         return self.pool.retry_operation_sync(callee)
-    
+
+    def _validate_table_name(self, table: str) -> str:
+        """Validate table name to prevent injection.
+
+        Only allows alphanumeric characters and underscores.
+        """
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
+            raise ValueError(f"Invalid table name: {table}")
+        return table
+
+    def _build_select_query(self, table: str, where: dict = None, limit: int = 100) -> Tuple[str, Optional[dict]]:
+        """Build a parameterized SELECT query.
+
+        Returns tuple of (query_string, parameters_dict).
+        """
+        table = self._validate_table_name(table)
+
+        if where:
+            # Build parameterized query
+            declares = []
+            conditions = []
+            params = {}
+
+            for k, v in where.items():
+                param_name = f'p_{k}'
+                declares.append(f'DECLARE ${param_name} AS Utf8;')
+                conditions.append(f'{k} = ${param_name}')
+                params[f'${param_name}'] = str(v) if v is not None else ''
+
+            # nosec B608 - table is validated, values use parameterized placeholders ($p_field)
+            query = f"{' '.join(declares)} SELECT * FROM {table} WHERE {' AND '.join(conditions)} LIMIT {limit}"
+            return query, params
+        else:
+            return f"SELECT * FROM {table} LIMIT {limit}", None
+
+    def _build_delete_query(self, table: str, where: dict) -> Tuple[str, dict]:
+        """Build a parameterized DELETE query.
+
+        Returns tuple of (query_string, parameters_dict).
+        """
+        table = self._validate_table_name(table)
+
+        # Build parameterized query
+        declares = []
+        conditions = []
+        params = {}
+
+        for k, v in where.items():
+            param_name = f'p_{k}'
+            declares.append(f'DECLARE ${param_name} AS Utf8;')
+            conditions.append(f'{k} = ${param_name}')
+            params[f'${param_name}'] = str(v) if v is not None else ''
+
+        # nosec B608 - table is validated, values use parameterized placeholders ($p_field)
+        query = f"{' '.join(declares)} DELETE FROM {table} WHERE {' AND '.join(conditions)}"
+        return query, params
+
     def insert(self, table: str, data: dict) -> bool:
         """Insert record into table"""
         columns = ', '.join(data.keys())
@@ -114,22 +171,14 @@ class YDBClient:
         return True
     
     def select(self, table: str, where: dict = None, limit: int = 100) -> List[Dict]:
-        """Select records from table"""
-        query = f"SELECT * FROM {table}"
-        
-        if where:
-            conditions = ' AND '.join(f'{k} = "{v}"' for k, v in where.items())
-            query += f" WHERE {conditions}"
-        
-        query += f" LIMIT {limit}"
-        
-        return self.execute(query)
-    
+        """Select records from table using parameterized queries."""
+        query, params = self._build_select_query(table, where, limit)
+        return self.execute(query, params)
+
     def delete(self, table: str, where: dict) -> bool:
-        """Delete records from table"""
-        conditions = ' AND '.join(f'{k} = "{v}"' for k, v in where.items())
-        query = f"DELETE FROM {table} WHERE {conditions}"
-        self.execute(query)
+        """Delete records from table using parameterized queries."""
+        query, params = self._build_delete_query(table, where)
+        self.execute(query, params)
         return True
 
 
