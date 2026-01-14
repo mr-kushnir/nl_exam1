@@ -150,3 +150,45 @@ class ExpenseStorage:
         """Get the most recent expense for user"""
         expenses = self.get_expenses(user_id, limit=1)
         return expenses[0] if expenses else None
+
+    def get_today_expenses(self, user_id: int) -> List[Expense]:
+        """Get expenses for today only"""
+        now = datetime.now()
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        expenses = self.get_expenses(user_id)
+        return [
+            e for e in expenses
+            if e.created_at and e.created_at >= start_of_day
+        ]
+
+    def get_week_expenses(self, user_id: int, weeks_ago: int = 0) -> List[Expense]:
+        """Get expenses for a specific week
+
+        Args:
+            user_id: User ID
+            weeks_ago: 0 for current week, 1 for last week, etc.
+        """
+        now = datetime.now()
+
+        # Calculate week boundaries (Monday to Sunday)
+        days_since_monday = now.weekday()
+        week_start = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
+        week_start = week_start - timedelta(weeks=weeks_ago)
+        week_end = week_start + timedelta(days=7)
+
+        expenses = self.get_expenses(user_id)
+        return [
+            e for e in expenses
+            if e.created_at and week_start <= e.created_at < week_end
+        ]
+
+    def get_today_total(self, user_id: int) -> int:
+        """Get total expenses for today"""
+        expenses = self.get_today_expenses(user_id)
+        return sum(e.amount for e in expenses)
+
+    def get_week_total(self, user_id: int, weeks_ago: int = 0) -> int:
+        """Get total expenses for a specific week"""
+        expenses = self.get_week_expenses(user_id, weeks_ago)
+        return sum(e.amount for e in expenses)

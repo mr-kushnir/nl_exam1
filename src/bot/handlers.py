@@ -324,3 +324,61 @@ class BotHandlers:
                 "message": f"📁 Категория изменена на: {new_category}",
             }
         return {"success": False, "message": "Расход не найден"}
+
+    # ═══════════════════════════════════════════════════════════
+    # Time-based Reports (NLE-A-17)
+    # ═══════════════════════════════════════════════════════════
+
+    async def handle_today(self, user_id: int) -> str:
+        """Handle /today command - show today's expenses"""
+        expenses = self.storage.get_today_expenses(user_id)
+
+        if not expenses:
+            return "📅 Сегодня расходов нет.\n\nНапиши что-нибудь типа `кофе 300`"
+
+        lines = ["📅 *Расходы за сегодня:*\n"]
+        total = 0
+
+        emoji_map = {
+            "Еда": "🍕", "Транспорт": "🚕", "Развлечения": "🎉",
+            "Подписки": "📱", "Здоровье": "💊", "Подарки": "🎁",
+            "Образование": "📚", "Одежда": "👟", "Другое": "📝"
+        }
+
+        for exp in expenses:
+            emoji = emoji_map.get(exp.category, "📝")
+            time_str = exp.created_at.strftime("%H:%M")
+            lines.append(f"{emoji} {time_str} — {exp.item}: {exp.amount}₽")
+            total += exp.amount
+
+        lines.append(f"\n💰 *Итого: {total:,}₽*")
+        return "\n".join(lines)
+
+    async def handle_week(self, user_id: int) -> str:
+        """Handle /week command - show weekly comparison"""
+        this_week = self.storage.get_week_expenses(user_id, weeks_ago=0)
+        last_week = self.storage.get_week_expenses(user_id, weeks_ago=1)
+
+        this_week_total = sum(e.amount for e in this_week)
+        last_week_total = sum(e.amount for e in last_week)
+
+        lines = ["📊 *Расходы за неделю:*\n"]
+        lines.append(f"Эта неделя: {this_week_total:,}₽")
+
+        if last_week_total > 0:
+            lines.append(f"Прошлая неделя: {last_week_total:,}₽")
+
+            # Calculate percentage change
+            if last_week_total != 0:
+                change = ((this_week_total - last_week_total) / last_week_total) * 100
+
+                if change > 0:
+                    lines.append(f"\n📈 На {abs(change):.0f}% *больше* чем на прошлой неделе")
+                elif change < 0:
+                    lines.append(f"\n📉 На {abs(change):.0f}% *меньше* чем на прошлой неделе")
+                else:
+                    lines.append("\n➡️ Столько же, как на прошлой неделе")
+        else:
+            lines.append("\n_Данных за прошлую неделю нет_")
+
+        return "\n".join(lines)
