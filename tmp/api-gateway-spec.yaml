@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  title: nlexam API
+  version: 1.0.0
+paths:
+  /:
+    x-yc-apigateway-any-method:
+      x-yc-apigateway-integration:
+        type: serverless_containers
+        container_id: bba7ha844a2gpf5pou9e
+        service_account_id: ajepe3l9f32gq728vlca
+  /{path+}:
+    x-yc-apigateway-any-method:
+      x-yc-apigateway-integration:
+        type: serverless_containers
+        container_id: bba7ha844a2gpf5pou9e
+        service_account_id: ajepe3l9f32gq728vlca
+      parameters:
+        - name: path
+          in: path
+          required: false
+          schema:
+            type: string
