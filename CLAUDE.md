@@ -104,7 +104,7 @@ nlexam/
 Test Summary (2026-01-14)
 ═══════════════════════════════════════════════════════════
 
-Total Tests: 122 passing
+Total Tests: 171 passing
 Coverage: ~50%
 
 BDD Features: 12
@@ -232,6 +232,20 @@ Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
 ---
 
 ## Development Log
+
+### 2026-01-14: YDB Type Fix & YaGPT Parser
+
+**Fixed:**
+- YDB type mismatch: `user_id` and `amount` now use `Int64` (was `Utf8`)
+- SELECT/DELETE/UPDATE queries use correct types in WHERE clause
+- Type-based SQL injection protection
+
+**Updated:**
+- YaGPT parser: now uses YaGPT API as primary parser
+- Supports natural language amounts: "тыщу", "сотку", "косарь"
+- Pre-filter for non-expense messages (no hallucinations)
+- Fallback to regex for simple formats
+- Total: 171 tests passing
 
 ### 2026-01-14: BDD Features Complete
 

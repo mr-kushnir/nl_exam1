@@ -275,7 +275,7 @@ nlexam/
 ### Результаты
 
 ```
-170 tests passed
+171 tests passed
 Coverage: ~50%
 
 Parser edge cases: 48 tests
