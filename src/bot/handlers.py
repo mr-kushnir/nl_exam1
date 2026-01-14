@@ -468,3 +468,105 @@ class BotHandlers:
             return f"⚠️ Израсходовано {percentage:.0f}% бюджета ({total:,}₽ из {budget:,}₽)"
 
         return None
+
+    # ═══════════════════════════════════════════════════════════
+    # Expense Management Commands (NLE-A-19)
+    # ═══════════════════════════════════════════════════════════
+
+    async def handle_undo(self, user_id: int) -> Dict[str, Any]:
+        """Handle /undo command - delete last expense"""
+        last_expense = self.storage.get_last_expense(user_id)
+
+        if not last_expense:
+            return {
+                "success": False,
+                "message": "🤷 Нечего отменять — расходов пока нет.",
+            }
+
+        # Delete the expense
+        self.storage.delete_expense(user_id, last_expense.created_at.isoformat())
+
+        return {
+            "success": True,
+            "message": f"↩️ Удалено: {last_expense.item} — {last_expense.amount}₽ ({last_expense.category})",
+        }
+
+    async def handle_export(self, user_id: int, period: str = "month") -> Dict[str, Any]:
+        """Handle /export command - generate CSV export"""
+        expenses = self.storage.get_monthly_expenses(user_id)
+
+        if not expenses:
+            return {
+                "success": False,
+                "message": "📤 Нет расходов для экспорта за этот период.",
+            }
+
+        # Generate CSV
+        import io
+        import csv
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header
+        writer.writerow(["Дата", "Время", "Название", "Сумма", "Категория"])
+
+        # Data rows
+        for exp in sorted(expenses, key=lambda e: e.created_at, reverse=True):
+            writer.writerow([
+                exp.created_at.strftime("%Y-%m-%d"),
+                exp.created_at.strftime("%H:%M"),
+                exp.item,
+                exp.amount,
+                exp.category,
+            ])
+
+        csv_data = output.getvalue()
+
+        total = sum(e.amount for e in expenses)
+
+        return {
+            "success": True,
+            "message": f"📤 Экспорт готов: {len(expenses)} записей, итого {total:,}₽",
+            "csv_data": csv_data,
+            "filename": f"expenses_{datetime.now().strftime('%Y%m')}.csv",
+        }
+
+    async def handle_find(self, user_id: int, query: str) -> Dict[str, Any]:
+        """Handle /find command - search expenses"""
+        expenses = self.storage.get_monthly_expenses(user_id)
+
+        if not query:
+            return {
+                "success": False,
+                "message": "🔍 Укажите что искать: `/find кофе`",
+            }
+
+        query_lower = query.lower()
+        matches = [e for e in expenses if query_lower in e.item.lower()]
+
+        if not matches:
+            return {
+                "success": True,
+                "message": f"🔍 По запросу «{query}» ничего не найдено.",
+            }
+
+        total = sum(e.amount for e in matches)
+
+        lines = [f"🔍 *Найдено по «{query}»:*\n"]
+
+        for exp in matches[:10]:  # Limit to 10 results
+            date_str = exp.created_at.strftime("%d.%m")
+            lines.append(f"• {date_str}: {exp.item} — {exp.amount}₽")
+
+        if len(matches) > 10:
+            lines.append(f"\n_...и ещё {len(matches) - 10} записей_")
+
+        lines.append(f"\n💰 *Итого: {total:,}₽* ({len(matches)} записей)")
+
+        return {
+            "success": True,
+            "message": "\n".join(lines),
+            "count": len(matches),
+            "total": total,
+        }

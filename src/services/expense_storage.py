@@ -147,9 +147,13 @@ class ExpenseStorage:
         )
 
     def get_last_expense(self, user_id: int) -> Optional[Expense]:
-        """Get the most recent expense for user"""
-        expenses = self.get_expenses(user_id, limit=1)
-        return expenses[0] if expenses else None
+        """Get the most recent expense for user (latest by created_at)"""
+        expenses = self.get_expenses(user_id)
+        if not expenses:
+            return None
+        # Sort by created_at descending and return the first (most recent)
+        sorted_expenses = sorted(expenses, key=lambda e: e.created_at, reverse=True)
+        return sorted_expenses[0]
 
     def get_today_expenses(self, user_id: int) -> List[Expense]:
         """Get expenses for today only"""

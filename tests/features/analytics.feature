@@ -5,13 +5,9 @@ Feature: Analytics and Visualization
   So that I can understand my spending patterns
 
   Scenario: ASCII chart in monthly report
-    Given user has expenses in categories:
-      | Category    | Amount |
-      | Еда         | 15000  |
-      | Транспорт   | 5000   |
-      | Развлечения | 3000   |
+    Given user has expenses in multiple categories
     When user sends "расходы"
-    Then bot shows ASCII bar chart:
+    Then bot shows ASCII bar chart
       """
       Еда         ████████████████ 15000₽
       Транспорт   █████            5000₽
