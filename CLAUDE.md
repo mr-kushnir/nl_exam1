@@ -194,3 +194,65 @@ feat(NLE-2): implement news parser
 
 Refs NLE-2
 ```
+
+---
+
+## Project Status
+
+### Current Epic: NLE-13 - Expense Tracker Bot v2.0
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| Infrastructure | ✅ Done | Registry, YDB, S3, Container, API Gateway |
+| Agent System | ✅ Done | BUSINESS, DEVELOPER, TESTER, SECURITY, DEPLOYER |
+| YaGPT Service | ✅ Done | Expense parsing, intent detection |
+| ElevenLabs Service | ✅ Done | Voice transcription |
+| Expense Storage | ✅ Done | YDB integration |
+| Telegram Bot | ✅ Done | Handlers implemented |
+| Unit Tests | ✅ 23 passing | 100% pass rate |
+| BDD Tests | ⚠️ 7/13 passing | Step definitions need sync |
+| Production Deploy | ❌ Pending | Next step |
+
+### Completed Epics
+
+| Epic | Description | Status |
+|------|-------------|--------|
+| NLE-1 | Initial Setup | ✅ Done |
+
+### KB Articles
+
+| Article | Feature |
+|---------|---------|
+| NLE-A-8 | BDD: YaGPT Service |
+| NLE-A-9 | BDD: ElevenLabs Voice |
+| NLE-A-10 | BDD: Data Storage |
+| NLE-A-11 | BDD: Telegram Bot |
+
+---
+
+## Development Log
+
+### 2026-01-14: Agent System Update
+
+**Changes:**
+- Updated all agents for parallel work with KB, local files, and tasks
+- Added mandatory CLAUDE.md documentation logging
+- Added KB ↔ Local sync verification
+- Enforced immediate git push after every commit
+
+**Commits:**
+- `4645ba4` feat: add CLAUDE.md documentation logging to all agents
+- `4f33ed0` feat: update agents for parallel work with KB, local files, and tasks
+- `c022309` feat: add BDD test structure with feature files and step definitions
+
+### 2026-01-14: Initial Implementation (NLE-1)
+
+**Implemented:**
+- YaGPT Service (expense parsing, intent detection)
+- ElevenLabs Service (voice transcription)
+- Expense Storage (YDB client)
+- Telegram Bot Handlers
+
+**Test Results:**
+- Unit Tests: 23 passing
+- Coverage: ~85%
