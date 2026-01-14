@@ -570,3 +570,98 @@ class BotHandlers:
             "count": len(matches),
             "total": total,
         }
+
+    # ═══════════════════════════════════════════════════════════
+    # Analytics and Visualization (NLE-A-20)
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_ascii_chart(self, user_id: int, max_bar_length: int = 15) -> str:
+        """Generate ASCII bar chart for category totals"""
+        totals = self.storage.get_category_totals(user_id)
+
+        if not totals:
+            return "📊 Нет данных для графика"
+
+        # Find max value for scaling
+        max_val = max(totals.values())
+        if max_val == 0:
+            return "📊 Нет данных для графика"
+
+        emoji_map = {
+            "Еда": "🍕", "Транспорт": "🚕", "Развлечения": "🎉",
+            "Подписки": "📱", "Здоровье": "💊", "Подарки": "🎁",
+            "Образование": "📚", "Одежда": "👟", "Другое": "📝"
+        }
+
+        lines = ["📊 *Распределение расходов:*\n"]
+
+        # Sort by value descending
+        sorted_totals = sorted(totals.items(), key=lambda x: -x[1])
+
+        for category, amount in sorted_totals:
+            # Calculate bar length
+            bar_length = int((amount / max_val) * max_bar_length)
+            bar = "█" * bar_length
+
+            emoji = emoji_map.get(category, "📝")
+            lines.append(f"{emoji} {category:<12} {bar} {amount:,}₽")
+
+        return "\n".join(lines)
+
+    async def handle_day_stats(self, user_id: int) -> Dict[str, Any]:
+        """Handle day-of-week statistics command"""
+        expenses = self.storage.get_monthly_expenses(user_id)
+
+        if not expenses:
+            return {
+                "success": False,
+                "message": "📊 Недостаточно данных для статистики по дням.",
+            }
+
+        # Group by day of week (0=Monday, 6=Sunday)
+        day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+        day_totals = {i: 0 for i in range(7)}
+        day_counts = {i: 0 for i in range(7)}
+
+        for exp in expenses:
+            dow = exp.created_at.weekday()
+            day_totals[dow] += exp.amount
+            day_counts[dow] += 1
+
+        # Calculate averages
+        day_averages = {}
+        for dow in range(7):
+            if day_counts[dow] > 0:
+                day_averages[dow] = day_totals[dow] / day_counts[dow]
+            else:
+                day_averages[dow] = 0
+
+        # Find max for scaling and peak day
+        max_avg = max(day_averages.values()) if day_averages else 0
+        peak_day = max(day_averages.keys(), key=lambda k: day_averages[k]) if day_averages else 0
+
+        lines = ["📅 *Расходы по дням недели:*\n"]
+
+        for dow in range(7):
+            avg = day_averages.get(dow, 0)
+            total = day_totals.get(dow, 0)
+
+            # Bar length
+            bar_length = int((avg / max_avg) * 10) if max_avg > 0 else 0
+            bar = "█" * bar_length
+
+            # Highlight peak day
+            marker = " ▲ макс" if dow == peak_day and avg > 0 else ""
+
+            lines.append(f"{day_names[dow]}: {bar:<10} {total:,}₽{marker}")
+
+        # Summary
+        if peak_day is not None:
+            lines.append(f"\n📈 Больше всего тратишь в *{day_names[peak_day]}*")
+
+        return {
+            "success": True,
+            "message": "\n".join(lines),
+            "peak_day": day_names[peak_day] if peak_day is not None else None,
+            "day_totals": {day_names[k]: v for k, v in day_totals.items()},
+        }

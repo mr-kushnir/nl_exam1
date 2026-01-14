@@ -99,8 +99,8 @@ def then_show_progress(budget_context, percent):
 @then(parsers.parse('bot shows "{message}"'))
 def then_bot_shows(budget_context, message):
     """Verify bot message."""
-    response = budget_context.get('response', '')
-    warning = budget_context.get('warning', '')
+    response = budget_context.get('response', '') or ''
+    warning = budget_context.get('warning', '') or ''
     combined = response + warning
     # Check key parts
     if 'Потрачено' in message:

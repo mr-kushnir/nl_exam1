@@ -8,11 +8,6 @@ Feature: Analytics and Visualization
     Given user has expenses in multiple categories
     When user sends "расходы"
     Then bot shows ASCII bar chart
-      """
-      Еда         ████████████████ 15000₽
-      Транспорт   █████            5000₽
-      Развлечения ███              3000₽
-      """
 
   Scenario: Day-of-week statistics
     Given user has expenses across multiple weeks

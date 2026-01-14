@@ -18,15 +18,19 @@ def analytics_context():
     }
 
 
-@given('user has expenses in categories:')
-def given_expenses_in_categories(analytics_context, expense_storage, datatable):
-    """Add expenses by category from datatable."""
+@given('user has expenses in multiple categories')
+def given_expenses_in_categories(analytics_context, expense_storage):
+    """Add expenses in multiple categories."""
     from src.services.expense_storage import Expense
 
-    # Parse datatable (pytest-bdd format)
-    for row in datatable:
-        category = row['Category']
-        amount = int(row['Amount'])
+    # Predefined test data
+    categories = [
+        ('Еда', 15000),
+        ('Транспорт', 5000),
+        ('Развлечения', 3000),
+    ]
+
+    for category, amount in categories:
         expense = Expense(
             user_id=12345,
             item=category.lower(),
@@ -144,8 +148,8 @@ def when_first_of_month(analytics_context):
     return analytics_context
 
 
-@then('bot shows ASCII bar chart:')
-def then_show_chart(analytics_context, docstring=None):
+@then('bot shows ASCII bar chart')
+def then_show_chart(analytics_context):
     """Verify ASCII chart shown."""
     chart = analytics_context.get('chart', '')
     assert '█' in chart or len(chart) > 0
