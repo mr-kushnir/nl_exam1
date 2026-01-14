@@ -1,26 +1,25 @@
 """
-Tests for ElevenLabs Voice Service
+Tests for Yandex SpeechKit Voice Service
 BDD Reference: NLE-A-9
 """
 import pytest
 from unittest.mock import Mock, patch
-from src.services.elevenlabs_service import ElevenLabsService, TranscriptionResult
+from src.services.speech_service import SpeechService, TranscriptionResult
 
 
-class TestElevenLabsVoiceService:
-    """Feature: Voice Message Processing"""
+class TestSpeechService:
+    """Feature: Voice Message Processing with Yandex SpeechKit"""
 
     @pytest.fixture
     def service(self):
-        return ElevenLabsService()
+        return SpeechService()
 
     def test_transcribe_voice_message(self, service):
         """Scenario: Transcribe voice message
         Given user sends voice message with audio
-        When ElevenLabs processes audio
+        When SpeechKit processes audio
         Then return text transcription
         """
-        # Mock audio data
         audio_data = b"fake_audio_data"
 
         with patch.object(service, '_call_api') as mock_api:
@@ -51,7 +50,6 @@ class TestElevenLabsVoiceService:
         Given voice message with noise
         When transcription fails
         Then return error message
-        And suggest text input
         """
         audio_data = b"noisy_audio"
 
@@ -70,3 +68,22 @@ class TestElevenLabsVoiceService:
         """Test error message generation"""
         error_msg = service.get_error_message()
         assert "текст" in error_msg.lower() or "голосов" in error_msg.lower()
+
+    def test_transcribe_empty_audio(self, service):
+        """Scenario: Handle empty audio data
+        Given empty audio data
+        When trying to transcribe
+        Then return error
+        """
+        result = service.transcribe(b"")
+        assert result.success is False
+        assert "No audio data" in result.error
+
+    def test_transcribe_none_audio(self, service):
+        """Scenario: Handle None audio data
+        Given None as audio data
+        When trying to transcribe
+        Then return error
+        """
+        result = service.transcribe(None)
+        assert result.success is False

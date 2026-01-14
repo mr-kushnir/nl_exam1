@@ -6,7 +6,7 @@ BDD Reference: NLE-A-11
 """
 from typing import Optional
 from src.services.yagpt_service import YaGPTService, ParsedExpense
-from src.services.elevenlabs_service import ElevenLabsService
+from src.services.speech_service import SpeechService
 from src.services.expense_storage import ExpenseStorage, Expense
 
 
@@ -15,7 +15,7 @@ class BotHandlers:
 
     def __init__(self, use_memory_db: bool = True):
         self.yagpt = YaGPTService()
-        self.elevenlabs = ElevenLabsService()
+        self.speech = SpeechService()
         self.storage = ExpenseStorage(use_memory=use_memory_db)
 
     async def handle_start(self, user_id: int) -> str:
@@ -64,11 +64,11 @@ class BotHandlers:
 
     async def handle_voice(self, user_id: int, audio_data: bytes) -> str:
         """Handle voice message"""
-        # Transcribe audio
-        result = self.elevenlabs.transcribe(audio_data)
+        # Transcribe audio using Yandex SpeechKit
+        result = self.speech.transcribe(audio_data)
 
         if not result.success:
-            return self.elevenlabs.get_error_message()
+            return self.speech.get_error_message()
 
         # Process as text message
         return await self.handle_message(user_id, result.text)
