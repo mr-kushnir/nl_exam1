@@ -20,15 +20,16 @@ def given_bot_handler(bot_handlers, bot_context):
 
 
 @given(parsers.parse('user {user_id:d} has saved expenses'))
-def given_user_has_expenses_bot(bot_context, user_id, expense_storage):
-    """Pre-populate expenses for bot test."""
+def given_user_has_expenses_bot(bot_context, user_id):
+    """Pre-populate expenses for bot test using handler's storage."""
     from src.services.expense_storage import Expense
+    handler = bot_context['handler']
     expenses = [
-        Expense(user_id=user_id, item='кофе', amount=300, category='food'),
-        Expense(user_id=user_id, item='такси', amount=500, category='transport'),
+        Expense(user_id=user_id, item='кофе', amount=300, category='Еда'),
+        Expense(user_id=user_id, item='такси', amount=500, category='Транспорт'),
     ]
     for exp in expenses:
-        expense_storage.save_expense(exp)
+        handler.storage.save_expense(exp)
     bot_context['user_id'] = user_id
 
 

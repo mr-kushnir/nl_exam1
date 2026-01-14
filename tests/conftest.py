@@ -23,7 +23,7 @@ def expense_storage():
 
 
 @pytest.fixture
-def bot_handlers(yagpt_service, expense_storage):
-    """Bot handlers fixture."""
+def bot_handlers():
+    """Bot handlers fixture (in-memory mode)."""
     from src.bot.handlers import BotHandlers
-    return BotHandlers(yagpt_service, expense_storage)
+    return BotHandlers(use_memory_db=True)

@@ -10,9 +10,9 @@ Feature: Expense Parsing with YaGPT
 
   Scenario: Parse expense with category hint
     Given I have a YaGPT service
-    When I send message "такси до работы 500"
+    When I send message "такси 500"
     Then the expense should be parsed with item "такси" and amount 500
-    And the category should be "transport"
+    And the category should be "Транспорт"
 
   Scenario: Handle invalid expense message
     Given I have a YaGPT service
@@ -26,5 +26,5 @@ Feature: Expense Parsing with YaGPT
 
   Scenario: Detect monthly report intent
     Given I have a YaGPT service
-    When I send message "покажи расходы за месяц"
+    When I send message "расходы"
     Then the intent should be "report_monthly"

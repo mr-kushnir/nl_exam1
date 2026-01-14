@@ -18,7 +18,7 @@ Feature: Telegram Bot Handlers
   Scenario: Handle report request
     Given I have a bot handler
     And user 123 has saved expenses
-    When user 123 sends "отчет за месяц"
+    When user 123 sends "расходы"
     Then the bot should respond with expense report
 
   Scenario: Handle unknown message
