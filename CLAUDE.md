@@ -1,176 +1,252 @@
-# 🤖 MULTI-AGENT TASK-DRIVEN SYSTEM v3.2
+# 🤖 NLExam - Expense Tracker Bot
 
-## Integration Architecture
+## Project Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         INTEGRATIONS                                     │
-│                                                                          │
-│   YouTrack Tasks ──────▶ MCP (native Claude Code)                       │
-│   YouTrack KB ─────────▶ REST API (scripts/youtrack_kb.py)              │
-│   GitHub ──────────────▶ MCP (native Claude Code)                       │
-│   Yandex Cloud ────────▶ yc CLI + scripts                               │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+Telegram-бот для учёта расходов с поддержкой естественного языка и голосовых сообщений.
 
-### Why this split?
-
-- **Tasks via MCP**: Claude Code has native YouTrack MCP — use it for issues
-- **KB via API**: MCP doesn't support Knowledge Base — use REST API
+**Production URL:** https://bba7ha844a2gpf5pou9e.containers.yandexcloud.net/
+**Telegram Bot:** @nlexambot
 
 ---
 
-## Project Lifecycle
+## Architecture
 
 ```
-1. INFRA INIT (once)
-   └──▶ /infra:init
-        ├── Service Account
-        ├── Container Registry
-        ├── YDB Database
-        ├── S3 Bucket
-        ├── Wildcard Certificate (*.domain.ru)
-        └── API Gateway with subdomain
+┌─────────────────────────────────────────────────────────────┐
+│                    TELEGRAM BOT                              │
+│                                                              │
+│   User Message ─────▶ FastAPI Webhook                       │
+│                           │                                  │
+│                    ┌──────┴──────┐                          │
+│                    │             │                           │
+│              Text Message   Voice Message                    │
+│                    │             │                           │
+│                    ▼             ▼                           │
+│              YaGPT Service  SpeechKit STT                   │
+│              (parse intent)  (transcribe)                   │
+│                    │             │                           │
+│                    └──────┬──────┘                          │
+│                           │                                  │
+│                    Expense Storage                           │
+│                    (YDB / Memory)                            │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
 
-2. DEVELOPMENT (per Epic)
-   └──▶ /run EPIC-ID
-        ├── BUSINESS: Epic → KB articles + subtasks
-        ├── DEVELOPER: Tasks [Open] → TDD → [Review]
-        ├── TESTER: Tasks [Review] → test → [Tested/Open]
-        ├── SECURITY: Tasks [Tested] → scan → [Ready/Open]
-        └── DEPLOYER: Tasks [Ready] → deploy → [Done]
+### Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Bot Framework | python-telegram-bot 22.x |
+| Web Server | FastAPI + uvicorn |
+| NLP | YaGPT (expense parsing) |
+| Voice | Yandex SpeechKit STT |
+| Database | Yandex YDB |
+| Storage | Yandex S3 |
+| Hosting | Yandex Serverless Containers |
+
+---
+
+## Project Structure
+
+```
+nlexam/
+├── src/
+│   ├── bot/
+│   │   ├── handlers.py      # Command & message handlers
+│   │   └── main.py          # FastAPI + webhook
+│   ├── services/
+│   │   ├── yagpt_service.py      # Expense parsing
+│   │   ├── speech_service.py     # Yandex SpeechKit STT
+│   │   └── expense_storage.py    # YDB storage
+│   └── db/
+│       └── ydb_client.py    # YDB client
+├── tests/
+│   ├── features/            # BDD .feature files
+│   ├── steps/               # Step definitions
+│   └── test_*.py            # Unit tests
+├── scripts/
+│   └── youtrack_kb.py       # KB API client
+├── Dockerfile
+├── requirements.txt
+├── CLAUDE.md               # This file
+└── README.md               # User documentation
 ```
 
 ---
 
-## Working with YouTrack
+## Services
 
-### Tasks (via MCP)
+### YaGPT Service (`src/services/yagpt_service.py`)
 
-Use Claude Code's native YouTrack integration:
+Парсинг расходов из естественного языка:
 
-```
-# Read task
-"Read YouTrack issue NLE-1"
+```python
+# Parse expense
+result = yagpt.parse_expense("кофе 300")
+# -> ParsedExpense(item="кофе", amount=300, category="Еда")
 
-# Create subtask
-"Create YouTrack issue in NLE project:
- Summary: Implement news parser
- Description: See KB article NLE-A-5
- Parent: NLE-1"
-
-# Update state
-"Update YouTrack issue NLE-2 state to Review"
-
-# Add comment
-"Add comment to NLE-2: Implementation complete"
-
-# Search
-"Find YouTrack issues in NLE with state Open"
+# Detect intent
+intent = yagpt.detect_intent("расходы")
+# -> Intent(type="report_monthly")
 ```
 
-### Knowledge Base (via API)
+**Intents:**
+- `add_expense` - добавить расход
+- `report_monthly` - отчёт за месяц
+- `item_total` - сумма по позиции
+- `top_expenses` - топ категорий
 
-MCP doesn't support KB, use script:
+### Speech Service (`src/services/speech_service.py`)
+
+Распознавание голоса через Yandex SpeechKit:
+
+```python
+service = SpeechService()
+result = service.transcribe(audio_bytes)
+# -> TranscriptionResult(text="кофе триста", success=True)
+```
+
+**Note:** Использует IAM токен, полученный из OAuth токена.
+
+### Expense Storage (`src/services/expense_storage.py`)
+
+Хранение расходов в YDB или in-memory:
+
+```python
+storage = ExpenseStorage(use_memory=False)  # YDB
+storage = ExpenseStorage(use_memory=True)   # In-memory (tests)
+
+storage.save_expense(expense)
+expenses = storage.get_monthly_expenses(user_id)
+totals = storage.get_category_totals(user_id)
+```
+
+---
+
+## Development
+
+### Local Setup
 
 ```bash
-# List articles
-python scripts/youtrack_kb.py list
+# Clone
+git clone https://github.com/mr-kushnir/nl_exam1.git
+cd nl_exam1
 
-# Get article content
-python scripts/youtrack_kb.py get NLE-A-5
+# Venv
+python -m venv venv
+source venv/bin/activate  # or: venv\Scripts\activate
 
-# Get only BDD/Gherkin scenarios
-python scripts/youtrack_kb.py bdd NLE-A-5
+# Install
+pip install -r requirements.txt
 
-# Create article
-python scripts/youtrack_kb.py create "BDD: News Collection" "# Content..."
-
-# Update article
-python scripts/youtrack_kb.py update NLE-A-5 "# Updated content..."
+# Run locally (polling mode)
+python -m src.bot.main
 ```
 
----
+### Running Tests
 
-## Working with GitHub
+```bash
+# All tests
+python -m pytest tests/ -v
 
-Use Claude Code's native GitHub MCP:
+# With coverage
+python -m pytest tests/ --cov=src --cov-report=term-missing
 
+# Only BDD
+python -m pytest tests/steps/ -v
 ```
-# Create issue
-"Create GitHub issue:
- Title: Test failures in NLE-2
- Body: Coverage below 70%
- Labels: bug, testing"
 
-# Close issue
-"Close GitHub issue #5 with comment: Fixed in commit abc123"
+### Deployment
 
-# Commit
-"Commit changes with message: feat(NLE-2): implement news parser"
+```bash
+# Build
+docker build -t cr.yandex/$YC_REGISTRY_ID/nlexam-bot:latest .
 
 # Push
-"Push to origin main"
+docker push cr.yandex/$YC_REGISTRY_ID/nlexam-bot:latest
+
+# Deploy
+yc serverless container revision deploy \
+    --container-id $YC_CONTAINER_ID \
+    --image cr.yandex/$YC_REGISTRY_ID/nlexam-bot:latest \
+    ...
 ```
-
----
-
-## Task States & Agent Mapping
-
-| State | Agent | MCP Command |
-|-------|-------|-------------|
-| Open | DEVELOPER picks | `Find issues state: Open` |
-| In Progress | DEVELOPER working | `Update issue state: In Progress` |
-| Review | TESTER picks | `Find issues state: Review` |
-| Tested | SECURITY picks | `Find issues state: Tested` |
-| Ready | DEPLOYER picks | `Find issues state: Ready` |
-| Done | Completed | `Update issue state: Done` |
-
----
-
-## Agent Commands
-
-| Command | Description |
-|---------|-------------|
-| `/infra:init` | Create infrastructure (once) |
-| `/run EPIC-ID` | Full pipeline |
-| `/agent:business EPIC-ID` | Create KB articles + subtasks |
-| `/agent:developer` | Implement Open tasks |
-| `/agent:tester` | Test Review tasks |
-| `/agent:security` | Scan Tested tasks |
-| `/agent:deployer` | Deploy Ready tasks |
 
 ---
 
 ## Environment Variables
 
 ```bash
-# YouTrack (for KB API)
-YOUTRACK_URL=https://xxx.youtrack.cloud
-YOUTRACK_TOKEN=perm:xxx
-YOUTRACK_PROJECT=NLE
-
-# GitHub (MCP uses GITHUB_TOKEN from environment)
-GITHUB_TOKEN=ghp_xxx
+# Telegram
+BOT_TOKEN=xxx
 
 # Yandex Cloud
-YC_TOKEN=y0_xxx
+YC_TOKEN=y0_xxx                    # OAuth token
 YC_FOLDER_ID=b1gxxx
-YC_REGISTRY_ID=crpxxx          # Set by infra:init
-YC_SERVICE_ACCOUNT_ID=xxx       # Set by infra:init
-YC_CERT_ID=xxx                  # Set by infra:init
+YC_REGISTRY_ID=crpxxx
+YC_CONTAINER_ID=bbaxxx
+YC_SERVICE_ACCOUNT_ID=ajexxx
 
-# Database (set by infra:init)
-YDB_ENDPOINT=grpcs://...
-YDB_DATABASE=/ru-central1/...
-S3_BUCKET=xxx-files
+# YDB
+YDB_ENDPOINT=grpcs://ydb.serverless.yandexcloud.net:2135
+YDB_DATABASE=/ru-central1/xxx/xxx
+
+# S3
+S3_BUCKET=nlexam-files
 AWS_ACCESS_KEY_ID=xxx
 AWS_SECRET_ACCESS_KEY=xxx
-
-# Domain
-YANDEX_DOMAIN=podcast.rapidapp.ru
 ```
+
+---
+
+## Multi-Agent System
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `/run EPIC-ID` | Full pipeline (BUSINESS → DEVELOPER → TESTER → SECURITY → DEPLOYER) |
+| `/agent:business` | Create KB articles + subtasks |
+| `/agent:developer` | Implement tasks with TDD |
+| `/agent:tester` | Run tests, verify coverage |
+| `/agent:security` | Security scan (bandit, pip-audit) |
+| `/agent:deployer` | Build & deploy to production |
+
+### Task States
+
+| State | Agent | Action |
+|-------|-------|--------|
+| To do | DEVELOPER | Pick and implement |
+| In Progress | DEVELOPER | Working on it |
+| Done | - | Completed |
+
+---
+
+## Current Status
+
+### Epic NLE-13: Expense Tracker Bot v2.0 - ✅ COMPLETE
+
+| Task | Status | Description |
+|------|--------|-------------|
+| NLE-14 | ✅ Done | Fix BDD step definitions |
+| NLE-15 | ✅ Done | Integration tests |
+| NLE-16 | ✅ Done | Production deployment |
+| NLE-17 | ✅ Done | Voice recognition fix |
+
+### Test Results
+
+```
+57 passed, 1 warning
+Coverage: 71% (core services)
+```
+
+### Production
+
+- **Container:** ACTIVE
+- **Health:** `{"status":"healthy"}`
+- **Webhook:** Configured
+- **Voice:** Yandex SpeechKit (IAM token auth)
 
 ---
 
@@ -180,110 +256,37 @@ YANDEX_DOMAIN=podcast.rapidapp.ru
 <type>(<task-id>): <description>
 
 Refs <task-id>
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
 Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
-
-Example:
-```
-feat(NLE-2): implement news parser
-
-- Add TechCrunch scraper
-- Parse articles from last 24h
-- Cache in YDB
-
-Refs NLE-2
-```
-
----
-
-## Project Status
-
-### Current Epic: NLE-13 - Expense Tracker Bot v2.0
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| Infrastructure | ✅ Done | Registry, YDB, S3, Container, API Gateway |
-| Agent System | ✅ Done | BUSINESS, DEVELOPER, TESTER, SECURITY, DEPLOYER |
-| YaGPT Service | ✅ Done | Expense parsing, intent detection |
-| ElevenLabs Service | ✅ Done | Voice transcription |
-| Expense Storage | ✅ Done | YDB integration |
-| Telegram Bot | ✅ Done | Handlers implemented |
-| Unit Tests | ✅ 23 passing | 100% pass rate |
-| BDD Tests | ⚠️ 7/13 passing | Step definitions need sync |
-| Production Deploy | ❌ Pending | Next step |
-
-### Completed Epics
-
-| Epic | Description | Status |
-|------|-------------|--------|
-| NLE-1 | Initial Setup | ✅ Done |
-
-### KB Articles
-
-| Article | Feature |
-|---------|---------|
-| NLE-A-8 | BDD: YaGPT Service |
-| NLE-A-9 | BDD: ElevenLabs Voice |
-| NLE-A-10 | BDD: Data Storage |
-| NLE-A-11 | BDD: Telegram Bot |
 
 ---
 
 ## Development Log
 
-### 2026-01-14: Security Fix (DEVELOPER Agent)
+### 2026-01-14: Voice Recognition Fix
 
-**Fixed Issues:**
+- Replaced ElevenLabs with Yandex SpeechKit
+- Fixed IAM token authentication (OAuth → IAM conversion)
+- Deployed to production
 
-| Issue | Status | Fix | Commit |
-|-------|--------|-----|--------|
-| SQL Injection in select() | ✅ Fixed | Parameterized queries | dd718ce |
-| SQL Injection in delete() | ✅ Fixed | Parameterized queries | dd718ce |
+### 2026-01-14: Production Deployment
 
-**Changes:**
-- Added `_validate_table_name()` for table name injection prevention
-- Added `_build_select_query()` with parameterized WHERE clause
-- Added `_build_delete_query()` with parameterized WHERE clause
-- Refactored `select()` and `delete()` to use safe query builders
+- Added webhook mode (FastAPI)
+- Deployed to Yandex Serverless Containers
+- Configured Telegram webhook
+- All 57 tests passing
 
-**Tests:**
-- 7 new tests for SQL injection prevention
-- All 55 tests passing
-- Coverage: 50%
+### 2026-01-14: BDD Implementation
 
-**GitHub Issues:** #1, #2 closed
+- Fixed all BDD step definitions
+- Synced .feature files with implementation
+- 21 BDD scenarios passing
 
-### 2026-01-14: Security Scan (SECURITY Agent)
+### 2026-01-14: Initial Implementation
 
-**Scan Results:**
-- SAST (Bandit): 2 MEDIUM severity issues found
-- Dependencies (pip-audit): ✅ No vulnerabilities
-- Hardcoded Secrets: ✅ None found
-
-**Status:** ✅ RESOLVED - All security issues fixed
-
-### 2026-01-14: Agent System Update
-
-**Changes:**
-- Updated all agents for parallel work with KB, local files, and tasks
-- Added mandatory CLAUDE.md documentation logging
-- Added KB ↔ Local sync verification
-- Enforced immediate git push after every commit
-
-**Commits:**
-- `4645ba4` feat: add CLAUDE.md documentation logging to all agents
-- `4f33ed0` feat: update agents for parallel work with KB, local files, and tasks
-- `c022309` feat: add BDD test structure with feature files and step definitions
-
-### 2026-01-14: Initial Implementation (NLE-1)
-
-**Implemented:**
-- YaGPT Service (expense parsing, intent detection)
-- ElevenLabs Service (voice transcription)
-- Expense Storage (YDB client)
+- YaGPT Service (expense parsing)
+- Expense Storage (YDB)
 - Telegram Bot Handlers
-
-**Test Results:**
-- Unit Tests: 23 passing
-- Coverage: ~85%
+- Unit tests (23 tests)
