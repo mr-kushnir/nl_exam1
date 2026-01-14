@@ -21,8 +21,6 @@ class BotHandlers:
         self.storage = ExpenseStorage(use_memory=use_memory_db)
         # Pending expenses awaiting confirmation (user_id -> {expense_id: PendingExpense})
         self._pending_expenses: Dict[int, Dict[str, dict]] = {}
-        # User budgets (user_id -> budget_amount)
-        self._budgets: Dict[int, int] = {}
 
     async def handle_start(self, user_id: int) -> str:
         """Handle /start command"""
@@ -390,7 +388,8 @@ class BotHandlers:
         if amount <= 0:
             return {"success": False, "message": "Бюджет должен быть больше 0"}
 
-        self._budgets[user_id] = amount
+        # Save budget to database
+        self.storage.save_budget(user_id, amount)
 
         return {
             "success": True,
@@ -399,8 +398,8 @@ class BotHandlers:
         }
 
     def get_user_budget(self, user_id: int) -> Optional[int]:
-        """Get user's budget"""
-        return self._budgets.get(user_id)
+        """Get user's budget from database"""
+        return self.storage.get_budget(user_id)
 
     async def get_budget_status(self, user_id: int) -> Dict[str, Any]:
         """Get budget status with progress"""

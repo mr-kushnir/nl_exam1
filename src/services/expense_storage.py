@@ -27,6 +27,7 @@ class ExpenseStorage:
     """Expense storage service with YDB or in-memory backend"""
 
     TABLE_NAME = "expenses"
+    SETTINGS_TABLE = "user_settings"
 
     def __init__(self, use_memory: bool = False):
         if use_memory:
@@ -34,6 +35,7 @@ class ExpenseStorage:
         else:
             self.db = get_db()
         self._ensure_table()
+        self._ensure_settings_table()
 
     def _ensure_table(self):
         """Ensure expenses table exists"""
@@ -51,6 +53,39 @@ class ExpenseStorage:
                 """)
             except Exception:
                 pass  # Table may already exist
+
+    def _ensure_settings_table(self):
+        """Ensure user_settings table exists"""
+        if isinstance(self.db, YDBClient):
+            try:
+                self.db.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {self.SETTINGS_TABLE} (
+                        user_id Int64,
+                        budget Int64,
+                        PRIMARY KEY (user_id)
+                    )
+                """)
+            except Exception:
+                pass  # Table may already exist
+
+    # Budget Management
+    def save_budget(self, user_id: int, amount: int) -> bool:
+        """Save user budget to database (upsert)"""
+        # Delete existing budget first (for MemoryDB compatibility)
+        self.db.delete(self.SETTINGS_TABLE, {"user_id": user_id})
+        # Insert new budget
+        data = {
+            "user_id": user_id,
+            "budget": amount,
+        }
+        return self.db.insert(self.SETTINGS_TABLE, data)
+
+    def get_budget(self, user_id: int) -> Optional[int]:
+        """Get user budget from database"""
+        rows = self.db.select(self.SETTINGS_TABLE, {"user_id": user_id}, limit=1)
+        if rows:
+            return int(rows[0].get("budget", 0)) or None
+        return None
 
     def save_expense(self, expense: Expense) -> bool:
         """Save expense to storage"""
