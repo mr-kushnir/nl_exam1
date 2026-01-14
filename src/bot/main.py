@@ -184,22 +184,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     intent = bot_handlers.yagpt.detect_intent(text)
 
     if intent.type == "add_expense":
-        # Parse expense and ask for confirmation
-        parsed = bot_handlers.yagpt.parse_expense(text)
-        if parsed:
-            result = await bot_handlers.create_pending_expense(
-                user_id, parsed.item, parsed.amount, parsed.category
-            )
-            await update.message.reply_text(
-                result["message"],
-                parse_mode="Markdown",
-                reply_markup=get_confirmation_keyboard(result["expense_id"])
-            )
-        else:
-            await update.message.reply_text(
-                "🤔 Не понял, что записать.\n\nНапиши в формате: `кофе 300`",
-                parse_mode="Markdown"
-            )
+        # Parse expenses (supports multiple in one message)
+        response = await bot_handlers._handle_expense(user_id, text)
+        await update.message.reply_text(response, parse_mode="Markdown")
     else:
         # Handle other intents
         response = await bot_handlers.handle_message(user_id, text)
@@ -227,26 +214,13 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Show transcription and ask for confirmation
+    # Process transcribed text (supports multiple expenses)
     text = result.text
-    parsed = bot_handlers.yagpt.parse_expense(text)
-
-    if parsed:
-        pending = await bot_handlers.create_pending_expense(
-            user_id, parsed.item, parsed.amount, parsed.category
-        )
-        await update.message.reply_text(
-            f"🎙 Распознано: _{text}_\n\n{pending['message']}",
-            parse_mode="Markdown",
-            reply_markup=get_confirmation_keyboard(pending["expense_id"])
-        )
-    else:
-        # Try to process as command
-        response = await bot_handlers.handle_message(user_id, text)
-        await update.message.reply_text(
-            f"🎙 Распознано: _{text}_\n\n{response}",
-            parse_mode="Markdown"
-        )
+    response = await bot_handlers.handle_message(user_id, text)
+    await update.message.reply_text(
+        f"🎙 _{text}_\n\n{response}",
+        parse_mode="Markdown"
+    )
 
 
 # ═══════════════════════════════════════════════════════════
