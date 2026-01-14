@@ -215,6 +215,9 @@ GITHUB_REPO=mr-kushnir/nl_exam1
 |-------|-----|--------|
 | SQL Injection in select() | Parameterized queries | dd718ce |
 | SQL Injection in delete() | Parameterized queries | dd718ce |
+| SQL Injection in insert() | Table validation + parameterized | 72530d1 |
+| Vulnerable pip 25.2 (CVE-2025-8869) | Updated to >=25.3 | 7d9ee46 |
+| Vulnerable urllib3 2.6.2 (CVE-2026-21441) | Updated to >=2.6.3 | 7d9ee46 |
 
 ---
 
@@ -232,6 +235,16 @@ Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
 ---
 
 ## Development Log
+
+### 2026-01-14: Security Issues Resolved
+
+**GitHub Issues Closed:**
+- #3: SQL Injection in insert() - Fixed with table validation + parameterized queries
+- #4: Vulnerable dependencies - Updated pip>=25.3, urllib3>=2.6.3
+
+**Commits:**
+- 72530d1: YDB type fix + insert() security
+- 7d9ee46: Dependency updates
 
 ### 2026-01-14: YDB Type Fix & YaGPT Parser
 
