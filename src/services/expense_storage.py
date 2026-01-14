@@ -130,3 +130,23 @@ class ExpenseStorage:
             category=str(row.get("category", "Другое")),
             created_at=created_at,
         )
+
+    def delete_expense(self, user_id: int, created_at: str) -> bool:
+        """Delete expense by user_id and created_at timestamp"""
+        return self.db.delete(self.TABLE_NAME, {
+            "user_id": user_id,
+            "created_at": created_at,
+        })
+
+    def update_expense_category(self, user_id: int, created_at: str, new_category: str) -> bool:
+        """Update category for an expense"""
+        return self.db.update(
+            self.TABLE_NAME,
+            {"user_id": user_id, "created_at": created_at},
+            {"category": new_category}
+        )
+
+    def get_last_expense(self, user_id: int) -> Optional[Expense]:
+        """Get the most recent expense for user"""
+        expenses = self.get_expenses(user_id, limit=1)
+        return expenses[0] if expenses else None

@@ -181,6 +181,35 @@ class YDBClient:
         self.execute(query, params)
         return True
 
+    def update(self, table: str, where: dict, data: dict) -> bool:
+        """Update records in table using parameterized queries."""
+        table = self._validate_table_name(table)
+
+        # Build parameterized query
+        declares = []
+        params = {}
+
+        # WHERE clause
+        conditions = []
+        for k, v in where.items():
+            param_name = f'w_{k}'
+            declares.append(f'DECLARE ${param_name} AS Utf8;')
+            conditions.append(f'{k} = ${param_name}')
+            params[f'${param_name}'] = str(v) if v is not None else ''
+
+        # SET clause
+        sets = []
+        for k, v in data.items():
+            param_name = f's_{k}'
+            declares.append(f'DECLARE ${param_name} AS Utf8;')
+            sets.append(f'{k} = ${param_name}')
+            params[f'${param_name}'] = str(v) if v is not None else ''
+
+        # nosec B608 - table is validated, values use parameterized placeholders
+        query = f"{' '.join(declares)} UPDATE {table} SET {', '.join(sets)} WHERE {' AND '.join(conditions)}"
+        self.execute(query, params)
+        return True
+
 
 # Simple in-memory fallback when YDB is not available
 class MemoryDB:
@@ -216,12 +245,23 @@ class MemoryDB:
     def delete(self, table: str, where: dict) -> bool:
         if table not in self.tables:
             return True
-        
+
         self.tables[table] = [
             r for r in self.tables[table]
             if not all(r.get(k) == v for k, v in where.items())
         ]
         return True
+
+    def update(self, table: str, where: dict, data: dict) -> bool:
+        if table not in self.tables:
+            return False
+
+        updated = False
+        for record in self.tables[table]:
+            if all(str(record.get(k)) == str(v) for k, v in where.items()):
+                record.update(data)
+                updated = True
+        return updated
 
 
 def get_db():

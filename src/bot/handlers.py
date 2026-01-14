@@ -277,3 +277,50 @@ class BotHandlers:
         if user_id not in self._pending_expenses:
             return None
         return self._pending_expenses[user_id].get(expense_id)
+
+    # ═══════════════════════════════════════════════════════════
+    # Saved Expense Management (NLE-A-16)
+    # ═══════════════════════════════════════════════════════════
+
+    async def delete_expense(self, user_id: int, created_at: str) -> Dict[str, Any]:
+        """Delete a saved expense by created_at timestamp"""
+        expenses = self.storage.get_expenses(user_id)
+
+        # Find expense with matching created_at
+        target = None
+        for exp in expenses:
+            if exp.created_at.isoformat() == created_at:
+                target = exp
+                break
+
+        if not target:
+            return {"success": False, "message": "Расход не найден"}
+
+        # Delete from storage
+        success = self.storage.delete_expense(user_id, created_at)
+
+        if success:
+            return {
+                "success": True,
+                "message": f"🗑 Удалено: {target.item} — {target.amount}₽",
+            }
+        return {"success": False, "message": "Ошибка при удалении"}
+
+    async def change_expense_category(
+        self,
+        user_id: int,
+        created_at: str,
+        new_category: str
+    ) -> Dict[str, Any]:
+        """Change category of a saved expense"""
+        if new_category not in CATEGORIES:
+            return {"success": False, "message": f"Неизвестная категория: {new_category}"}
+
+        success = self.storage.update_expense_category(user_id, created_at, new_category)
+
+        if success:
+            return {
+                "success": True,
+                "message": f"📁 Категория изменена на: {new_category}",
+            }
+        return {"success": False, "message": "Расход не найден"}
