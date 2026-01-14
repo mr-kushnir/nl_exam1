@@ -280,7 +280,49 @@ except Exception as e:
 "
 ```
 
-### Step 8: Decision
+### Step 8: Update CLAUDE.md (Security Log)
+
+**⚠️ Document security scan results:**
+
+```bash
+cat >> CLAUDE.md << 'EOF'
+
+---
+
+## Security Log: TASK-ID
+
+**Date:** $(date +%Y-%m-%d)
+**Agent:** SECURITY
+
+### Scan Results
+| Check | Status | Details |
+|-------|--------|---------|
+| SAST (Bandit) | ✅/❌ | X high, Y medium, Z low |
+| Dependencies | ✅/❌ | CVE count |
+| Secrets | ✅/❌ | Found/None |
+| OWASP Top 10 | ✅/❌ | Issues found |
+
+### Vulnerabilities Found
+| Severity | Count | Action |
+|----------|-------|--------|
+| CRITICAL | 0 | BLOCK |
+| HIGH | 0 | BLOCK |
+| MEDIUM | X | WARN |
+| LOW | Y | PASS |
+
+### Decision
+- **Status:** APPROVED/BLOCKED
+- **Reason:** [reason if blocked]
+- **Next:** DEPLOYER/DEVELOPER
+
+EOF
+
+git add CLAUDE.md
+git commit -m "docs(TASK-ID): add security log"
+git push origin main
+```
+
+### Step 9: Decision
 
 #### APPROVE (→ Ready)
 
@@ -389,7 +431,7 @@ requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text
 "
 ```
 
-### Step 9: Next Task
+### Step 10: Next Task
 
 Repeat for next Tested task.
 

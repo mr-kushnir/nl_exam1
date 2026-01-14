@@ -216,11 +216,48 @@ print('Integration test PASSED')
 "
 ```
 
-### Step 10: Decision
+### Step 10: Update CLAUDE.md (Test Log)
+
+**⚠️ Document testing results:**
+
+```bash
+cat >> CLAUDE.md << 'EOF'
+
+---
+
+## Test Log: TASK-ID
+
+**Date:** $(date +%Y-%m-%d)
+**Agent:** TESTER
+
+### Test Results
+| Check | Result | Details |
+|-------|--------|---------|
+| KB ↔ Local Sync | ✅/❌ | Verified/Mismatch |
+| Unit Tests | XX passing | All pass |
+| BDD Scenarios | X/X | All scenarios pass |
+| Coverage | XX% | >= 70% required |
+| TDD Commits | ✅/❌ | RED/GREEN found |
+| Code Quality | ✅/❌ | Issues found |
+
+### Decision
+- **Status:** APPROVED/REJECTED
+- **Reason:** [reason if rejected]
+- **Next:** SECURITY/DEVELOPER
+
+EOF
+
+git add CLAUDE.md
+git commit -m "docs(TASK-ID): add test log"
+git push origin main
+```
+
+### Step 11: Decision
 
 #### APPROVE (→ Tested)
 
 If ALL conditions met:
+- [ ] KB ↔ Local sync verified
 - [ ] All unit tests pass
 - [ ] Coverage >= 70%
 - [ ] TDD commits exist
@@ -310,7 +347,7 @@ requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text
 "
 ```
 
-### Step 11: Next Task
+### Step 12: Next Task
 
 Repeat for next Review task.
 
