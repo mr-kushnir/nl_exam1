@@ -1,9 +1,14 @@
 """
 Telegram Bot Main Entry Point.
 Expense tracker bot with YaGPT and ElevenLabs integration.
+
+Supports both webhook mode (for production) and polling mode (for local dev).
 """
 import os
 import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, Response
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -27,6 +32,9 @@ logger = logging.getLogger(__name__)
 
 # Initialize handlers
 bot_handlers = BotHandlers(use_memory_db=False)
+
+# Telegram application (initialized later)
+ptb_app: Application = None
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -67,14 +75,12 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(response, parse_mode="Markdown")
 
 
-def main():
-    """Start the bot"""
+def create_ptb_application() -> Application:
+    """Create and configure the python-telegram-bot Application"""
     token = os.getenv("BOT_TOKEN")
     if not token:
-        logger.error("BOT_TOKEN not set in environment")
-        return
+        raise ValueError("BOT_TOKEN not set in environment")
 
-    # Create application
     application = Application.builder().token(token).build()
 
     # Add handlers
@@ -83,8 +89,62 @@ def main():
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    # Start polling
-    logger.info("Starting expense tracker bot...")
+    return application
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan handler - initialize and cleanup PTB"""
+    global ptb_app
+    ptb_app = create_ptb_application()
+    await ptb_app.initialize()
+    await ptb_app.start()
+    logger.info("Bot started in webhook mode")
+    yield
+    await ptb_app.stop()
+    await ptb_app.shutdown()
+    logger.info("Bot stopped")
+
+
+# FastAPI app for webhook mode
+app = FastAPI(lifespan=lifespan)
+
+
+@app.get("/")
+async def root():
+    """Health check endpoint"""
+    return {"status": "ok", "bot": "nlexam expense tracker"}
+
+
+@app.get("/health")
+async def health():
+    """Health check for container orchestration"""
+    return {"status": "healthy"}
+
+
+@app.post("/webhook")
+async def webhook(request: Request) -> Response:
+    """Handle incoming Telegram webhook updates"""
+    try:
+        data = await request.json()
+        update = Update.de_json(data, ptb_app.bot)
+        await ptb_app.process_update(update)
+        return Response(status_code=200)
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return Response(status_code=200)  # Always return 200 to avoid retries
+
+
+def main():
+    """Start the bot in polling mode (for local development)"""
+    token = os.getenv("BOT_TOKEN")
+    if not token:
+        logger.error("BOT_TOKEN not set in environment")
+        return
+
+    application = create_ptb_application()
+
+    logger.info("Starting expense tracker bot in polling mode...")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
