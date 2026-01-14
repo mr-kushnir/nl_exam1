@@ -2,137 +2,209 @@ DEVELOPER Agent: Pick Open tasks (MCP) → Read BDD from KB (API) → TDD → Re
 
 **Input:** None (picks from queue) or specific task ID
 
+## CRITICAL REQUIREMENTS
+
+⚠️ **MANDATORY GIT COMMITS** ⚠️
+
+The DEVELOPER agent MUST commit after EVERY TDD phase:
+1. **RED** - Commit failing test BEFORE implementation
+2. **GREEN** - Commit working implementation
+3. **REFACTOR** - Commit refactored code (if any)
+
+**NO EXCEPTIONS. Each commit must happen IMMEDIATELY after completing the phase.**
+
+---
+
 ## Integration
 
 - **Tasks**: YouTrack MCP (native)
 - **Knowledge Base**: REST API for BDD scenarios
-- **Git**: GitHub MCP (native)
+- **Git**: Bash commands (git add, git commit, git push)
 
 ---
 
 ## Workflow
 
-### Step 1: Find Open Tasks via MCP
-
-```
-Find YouTrack issues in project POD with state Open
-```
-
-### Step 2: Pick Task and Start
-
-```
-Update YouTrack issue POD-2 state to "In Progress"
-Add comment to POD-2: 🔧 DEVELOPER Agent started
-```
-
-### Step 3: Read Task Description via MCP
-
-```
-Read YouTrack issue POD-2 with full description
-```
-
-Find KB article reference in description:
-```
-## 📚 BDD Specification
-**Knowledge Base Article:** POD-A-5
-```
-
-### Step 4: Read BDD from KB (via API)
+### Step 1: Initialize Git (if needed)
 
 ```bash
-python scripts/youtrack_kb.py bdd POD-A-5
+# Check if git repo exists
+git status || git init
+
+# Configure if needed
+git config user.email "bot@example.com" || true
+git config user.name "Developer Bot" || true
 ```
 
-Output:
-```gherkin
-Feature: News Collection from TechCrunch AI
+### Step 2: Find Open Tasks
 
-  Scenario: Successfully parse recent articles
-    Given the TechCrunch website is accessible
-    When I request articles from the last 24 hours
-    Then I should receive between 5 and 7 articles
-    ...
+```bash
+python -c "
+import os, requests
+from dotenv import load_dotenv
+load_dotenv()
+url = os.getenv('YOUTRACK_URL').rstrip('/')
+token = os.getenv('YOUTRACK_TOKEN')
+project = os.getenv('YOUTRACK_PROJECT')
+headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/json'}
+r = requests.get(f'{url}/api/issues?fields=idReadable,summary&query=project:{project}%20State:Open', headers=headers)
+for t in r.json(): print(f\"{t['idReadable']}: {t['summary']}\")
+"
+```
+
+### Step 3: Pick Task and Update State
+
+```bash
+# Update task to In Progress via API
+python -c "
+import os, requests
+from dotenv import load_dotenv
+load_dotenv()
+url = os.getenv('YOUTRACK_URL').rstrip('/')
+token = os.getenv('YOUTRACK_TOKEN')
+headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/json', 'Content-Type': 'application/json'}
+data = {'customFields': [{'name': 'State', '\$type': 'StateIssueCustomField', 'value': {'name': 'In Progress'}}]}
+requests.post(f'{url}/api/issues/TASK-ID?fields=id', headers=headers, json=data)
+requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text': 'DEVELOPER Agent started'})
+"
+```
+
+### Step 4: Read BDD from KB
+
+```bash
+python scripts/youtrack_kb.py bdd ARTICLE-ID
 ```
 
 ### Step 5: TDD Implementation
 
-**For EACH scenario:**
+**For EACH Gherkin scenario:**
 
-#### RED - Write Failing Test
+#### 5.1 RED Phase - Write Failing Test
+
 ```python
-# tests/unit/news/test_parser.py
-
-def test_parse_recent_articles():
-    """Scenario: Successfully parse recent articles"""
-    parser = TechCrunchParser()
-    articles = parser.parse_recent(hours=24)
-    
-    assert 5 <= len(articles) <= 7
-    for article in articles:
-        assert article.title
-        assert article.url
+# tests/test_feature.py
+def test_scenario_name():
+    """Scenario: Description from Gherkin"""
+    # Arrange
+    # Act
+    # Assert
+    pass
 ```
 
-Commit via MCP:
+**Run test to verify it fails:**
+```bash
+python -m pytest tests/test_feature.py::test_scenario_name -v
+# Must see FAILED
 ```
-Commit with message: test(POD-2): red: failing test for parse_recent_articles
 
-Refs POD-2
+**⚠️ MANDATORY COMMIT - RED:**
+```bash
+git add tests/
+git commit -m "$(cat <<'EOF'
+test(TASK-ID): red: failing test for scenario_name
+
+- Added test for: [scenario description]
+- Test fails as expected (no implementation yet)
+
+Refs TASK-ID
+EOF
+)"
 ```
 
-#### GREEN - Implement
+#### 5.2 GREEN Phase - Implement
+
+Write minimal code to make test pass:
 ```python
-# src/news/parser.py
-
-class TechCrunchParser:
-    def parse_recent(self, hours=24):
+# src/module/feature.py
+class Feature:
+    def method(self):
         # Implementation
-        ...
+        pass
 ```
 
-Commit:
-```
-Commit with message: feat(POD-2): green: implement parse_recent
-
-Refs POD-2
-```
-
-#### REFACTOR
-```
-Commit with message: refactor(POD-2): extract HTTP client
-
-Refs POD-2
+**Run test to verify it passes:**
+```bash
+python -m pytest tests/test_feature.py::test_scenario_name -v
+# Must see PASSED
 ```
 
-**Repeat for each scenario.**
+**⚠️ MANDATORY COMMIT - GREEN:**
+```bash
+git add src/ tests/
+git commit -m "$(cat <<'EOF'
+feat(TASK-ID): green: implement scenario_name
 
-### Step 6: Verify Tests
+- Implemented: [what was implemented]
+- Test now passes
+
+Refs TASK-ID
+EOF
+)"
+```
+
+#### 5.3 REFACTOR Phase (if needed)
+
+Clean up code without changing behavior:
+```bash
+python -m pytest tests/ -v  # All tests must still pass
+```
+
+**⚠️ MANDATORY COMMIT - REFACTOR:**
+```bash
+git add src/
+git commit -m "$(cat <<'EOF'
+refactor(TASK-ID): clean up implementation
+
+- [What was refactored]
+- All tests still passing
+
+Refs TASK-ID
+EOF
+)"
+```
+
+**Repeat steps 5.1-5.3 for EACH scenario.**
+
+### Step 6: Verify All Tests
 
 ```bash
-python -m pytest tests/ -v --cov=src
+python -m pytest tests/ -v --cov=src --cov-report=term-missing
 ```
+
+**Requirements:**
+- All tests MUST pass
+- Coverage MUST be >= 70%
 
 ### Step 7: Push and Move to Review
 
+```bash
+git push origin main
 ```
-Push to origin main
-```
 
-```
-Update YouTrack issue POD-2 state to "Review"
-Add comment to POD-2:
+Update task state:
+```bash
+python -c "
+import os, requests
+from dotenv import load_dotenv
+load_dotenv()
+url = os.getenv('YOUTRACK_URL').rstrip('/')
+token = os.getenv('YOUTRACK_TOKEN')
+headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/json', 'Content-Type': 'application/json'}
+data = {'customFields': [{'name': 'State', '\$type': 'StateIssueCustomField', 'value': {'name': 'Review'}}]}
+requests.post(f'{url}/api/issues/TASK-ID?fields=id', headers=headers, json=data)
+comment = '''DEVELOPER Complete
 
-✅ **DEVELOPER Complete**
+Commits:
+- test(TASK-ID): red: failing test for X
+- feat(TASK-ID): green: implement X
+- refactor(TASK-ID): cleanup
 
-## Implementation
-- Scenarios implemented: 4
-- TDD cycles: 4
-- Commits: 12
+Tests: X passing
+Coverage: XX%
 
-## Tests
-All passing, coverage 85%
-
-Ready for TESTER
+Ready for TESTER'''
+requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text': comment})
+"
 ```
 
 ### Step 8: Next Task
@@ -144,16 +216,33 @@ Repeat for next Open task.
 ## Commit Convention
 
 ```
-<type>(POD-X): <phase>: <description>
+<type>(TASK-ID): <phase>: <description>
 
-Refs POD-X
+- Detail 1
+- Detail 2
+
+Refs TASK-ID
 ```
 
-| Phase | Type | Example |
-|-------|------|---------|
-| RED | test | `test(POD-2): red: failing test for cache` |
-| GREEN | feat | `feat(POD-2): green: implement cache` |
-| REFACTOR | refactor | `refactor(POD-2): extract cache class` |
+| Phase | Type | Prefix | Example |
+|-------|------|--------|---------|
+| RED | test | red: | `test(NLE-5): red: failing test for parse_expense` |
+| GREEN | feat | green: | `feat(NLE-5): green: implement parse_expense` |
+| REFACTOR | refactor | | `refactor(NLE-5): extract helper method` |
+| FIX | fix | | `fix(NLE-5): handle edge case` |
+
+---
+
+## Verification Checklist
+
+Before moving to Review:
+
+- [ ] All Gherkin scenarios have tests
+- [ ] All tests pass
+- [ ] Coverage >= 70%
+- [ ] At least 2 commits per scenario (RED + GREEN)
+- [ ] All commits pushed to remote
+- [ ] Task state updated to Review
 
 ---
 
@@ -161,17 +250,24 @@ Refs POD-X
 
 ```
 ═══════════════════════════════════════════════════════════
-DEVELOPER: POD-2 → Review
+DEVELOPER: TASK-ID → Review
 ═══════════════════════════════════════════════════════════
 
-📚 BDD Source: POD-A-5
+📚 BDD Source: ARTICLE-ID
 📝 Scenarios: 4
 🔄 TDD Cycles: 4
-📦 Commits: 12
+
+📦 Commits:
+  - test(TASK-ID): red: failing test for scenario1
+  - feat(TASK-ID): green: implement scenario1
+  - test(TASK-ID): red: failing test for scenario2
+  - feat(TASK-ID): green: implement scenario2
+  ... (8 commits total)
+
 ✅ Tests: 15 passing
 📊 Coverage: 85%
 
-Next task: POD-3 [Open]
+Next task: TASK-ID+1 [Open]
 ```
 
 Task ID (optional): $ARGUMENTS

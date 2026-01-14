@@ -1,91 +1,259 @@
-TESTER Agent: Review tasks (MCP) → Run tests → Tested or back to Open
+TESTER Agent: Review tasks (MCP) → Comprehensive Testing → Tested or back to Open
 
 **Input:** None (picks from queue) or specific task ID
 
+## CRITICAL REQUIREMENTS
+
+⚠️ **THOROUGH TESTING** ⚠️
+
+The TESTER agent MUST perform comprehensive testing:
+1. **Unit tests** - All existing tests must pass
+2. **Coverage** - Minimum 70%, target 80%+
+3. **Edge cases** - Test boundary conditions
+4. **Integration** - Test component interactions
+5. **Error handling** - Verify error paths
+6. **Code review** - Check code quality and BDD compliance
+
+**DO NOT approve code that lacks proper testing or error handling.**
+
+---
+
 ## Integration
 
-- **Tasks**: YouTrack MCP (native)
-- **Issues**: GitHub MCP (native)
+- **Tasks**: YouTrack API
+- **Issues**: GitHub API
+- **Git**: Bash commands
 
 ---
 
 ## Workflow
 
-### Step 1: Find Review Tasks via MCP
-
-```
-Find YouTrack issues in project POD with state Review
-```
-
-### Step 2: Pick Task
-
-Read task details:
-```
-Read YouTrack issue POD-2
-```
-
-### Step 3: Run Tests
+### Step 1: Find Review Tasks
 
 ```bash
-python -m pytest tests/ -v --cov=src --cov-report=term-missing
+python -c "
+import os, requests
+from dotenv import load_dotenv
+load_dotenv()
+url = os.getenv('YOUTRACK_URL').rstrip('/')
+token = os.getenv('YOUTRACK_TOKEN')
+project = os.getenv('YOUTRACK_PROJECT')
+headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/json'}
+r = requests.get(f'{url}/api/issues?fields=idReadable,summary&query=project:{project}%20State:Review', headers=headers)
+for t in r.json(): print(f\"{t['idReadable']}: {t['summary']}\")
+"
 ```
 
-Calculate coverage:
+### Step 2: Verify Git Commits
+
+**Check that DEVELOPER made proper TDD commits:**
 ```bash
-python -m pytest tests/ --cov=src --cov-report=json -q
+git log --oneline -20
+
+# Look for pattern:
+# - test(TASK-ID): red: ...
+# - feat(TASK-ID): green: ...
 ```
 
-### Step 4: Evaluate Results
+**⚠️ If NO TDD commits found → REJECT immediately**
 
-**If tests PASS and coverage >= 70%:**
+### Step 3: Run Unit Tests
 
-```
-Update YouTrack issue POD-2 state to "Tested"
-Add comment to POD-2:
-
-✅ **TESTER Approved**
-
-| Metric | Value |
-|--------|-------|
-| Tests | 15 passing |
-| Coverage | 85% |
-
-Ready for SECURITY
+```bash
+python -m pytest tests/ -v --tb=short 2>&1
 ```
 
-**If tests FAIL or coverage < 70%:**
+**All tests MUST pass. Any failure → REJECT**
 
-Create GitHub issue:
-```
-Create GitHub issue:
-  Title: [TESTER] Test failures in POD-2
-  Body: |
-    ## Failed Tests
-    - test_parse_recent_articles
-    - test_cache_fallback
-    
-    ## Coverage
-    45% (required: 70%)
-    
-    Refs POD-2
-  Labels: bug, testing
+### Step 4: Check Coverage
+
+```bash
+python -m pytest tests/ --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=70
 ```
 
-Return to developer:
+**Coverage requirements:**
+- Minimum: 70% (MUST have)
+- Target: 80% (should have)
+- Excellent: 90%+ (nice to have)
+
+**⚠️ Coverage < 70% → REJECT**
+
+### Step 5: Verify BDD Compliance
+
+Read BDD scenarios from KB:
+```bash
+python scripts/youtrack_kb.py bdd ARTICLE-ID
 ```
-Update YouTrack issue POD-2 state to "Open"
-Add comment to POD-2:
 
-❌ **TESTER Returned**
+**For EACH Gherkin scenario, verify:**
+- [ ] Test exists for this scenario
+- [ ] Test name references scenario
+- [ ] Test covers Given/When/Then
 
-**Reason:** Tests failing / coverage below 70%
+### Step 6: Test Edge Cases
 
-**GitHub Issue:** #5
+**Run additional edge case tests:**
+```bash
+# Test with empty inputs
+python -m pytest tests/ -v -k "empty or none or null" 2>&1 || true
 
-Please fix and resubmit.
+# Test with invalid inputs
+python -m pytest tests/ -v -k "invalid or error or fail" 2>&1 || true
 ```
 
-### Step 5: Next Task
+**Check for missing edge case tests:**
+- Empty/null inputs
+- Boundary values (0, -1, MAX_INT)
+- Invalid formats
+- Network errors
+- Timeouts
+
+### Step 7: Code Review Checklist
+
+**Review the implementation code for:**
+
+```bash
+# Check for TODO/FIXME comments
+grep -rn "TODO\|FIXME\|HACK\|XXX" src/ || echo "No TODOs found"
+
+# Check for print statements (should use logging)
+grep -rn "print(" src/ --include="*.py" | grep -v "test" || echo "No prints found"
+
+# Check for hardcoded values
+grep -rn "localhost\|127.0.0.1\|password\|secret" src/ || echo "No hardcoded values"
+
+# Check for proper error handling
+grep -rn "except:" src/ --include="*.py" || echo "No bare excepts"
+```
+
+**Code quality issues to flag:**
+- [ ] Bare `except:` clauses
+- [ ] Missing docstrings on public methods
+- [ ] Hardcoded configuration values
+- [ ] Print statements instead of logging
+- [ ] TODO/FIXME comments not addressed
+
+### Step 8: Integration Test (if applicable)
+
+**Test component interactions:**
+```bash
+# Run integration tests if they exist
+python -m pytest tests/integration/ -v 2>&1 || echo "No integration tests"
+
+# Or test manually
+python -c "
+from src.services.yagpt_service import YaGPTService
+from src.services.expense_storage import ExpenseStorage, Expense
+
+yagpt = YaGPTService()
+storage = ExpenseStorage(use_memory=True)
+
+# Test flow: parse -> save -> retrieve
+parsed = yagpt.parse_expense('кофе 300')
+assert parsed is not None
+expense = Expense(user_id=1, item=parsed.item, amount=parsed.amount, category=parsed.category)
+storage.save_expense(expense)
+expenses = storage.get_expenses(1)
+assert len(expenses) == 1
+print('Integration test PASSED')
+"
+```
+
+### Step 9: Decision
+
+#### APPROVE (→ Tested)
+
+If ALL conditions met:
+- [ ] All unit tests pass
+- [ ] Coverage >= 70%
+- [ ] TDD commits exist
+- [ ] BDD scenarios covered
+- [ ] No critical code issues
+
+```bash
+python -c "
+import os, requests
+from dotenv import load_dotenv
+load_dotenv()
+url = os.getenv('YOUTRACK_URL').rstrip('/')
+token = os.getenv('YOUTRACK_TOKEN')
+headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/json', 'Content-Type': 'application/json'}
+data = {'customFields': [{'name': 'State', '\$type': 'StateIssueCustomField', 'value': {'name': 'Tested'}}]}
+requests.post(f'{url}/api/issues/TASK-ID?fields=id', headers=headers, json=data)
+comment = '''TESTER Approved
+
+## Test Results
+| Metric | Value | Status |
+|--------|-------|--------|
+| Unit Tests | XX passing | ✅ |
+| Coverage | XX% | ✅ |
+| BDD Compliance | X/X scenarios | ✅ |
+| Code Quality | No issues | ✅ |
+
+## Verified
+- [x] TDD commits present
+- [x] All scenarios tested
+- [x] Edge cases covered
+- [x] Error handling verified
+
+Ready for SECURITY'''
+requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text': comment})
+"
+```
+
+#### REJECT (→ Open + GitHub Issue)
+
+If ANY condition fails:
+
+**Create GitHub Issue:**
+```bash
+# Using gh CLI or API
+gh issue create --title "[TESTER] Issues in TASK-ID" --body "## Testing Failed
+
+### Issues Found
+- [ ] Issue 1: Description
+- [ ] Issue 2: Description
+
+### Test Results
+- Tests: X passing, Y failing
+- Coverage: XX% (required: 70%)
+
+### Required Actions
+1. Fix failing tests
+2. Add missing edge case tests
+3. Increase coverage
+
+Refs TASK-ID" --label "bug,testing"
+```
+
+**Return to Open:**
+```bash
+python -c "
+import os, requests
+from dotenv import load_dotenv
+load_dotenv()
+url = os.getenv('YOUTRACK_URL').rstrip('/')
+token = os.getenv('YOUTRACK_TOKEN')
+headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/json', 'Content-Type': 'application/json'}
+data = {'customFields': [{'name': 'State', '\$type': 'StateIssueCustomField', 'value': {'name': 'Open'}}]}
+requests.post(f'{url}/api/issues/TASK-ID?fields=id', headers=headers, json=data)
+comment = '''TESTER Rejected
+
+## Issues Found
+1. [Issue description]
+2. [Issue description]
+
+## GitHub Issue
+#XX
+
+## Required Actions
+- Fix the issues listed above
+- Resubmit for review'''
+requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text': comment})
+"
+```
+
+### Step 10: Next Task
 
 Repeat for next Review task.
 
@@ -93,11 +261,26 @@ Repeat for next Review task.
 
 ## Decision Matrix
 
-| Tests | Coverage | Action |
-|-------|----------|--------|
-| ✅ Pass | >= 70% | → Tested |
-| ✅ Pass | < 70% | → Open + GitHub Issue |
-| ❌ Fail | any | → Open + GitHub Issue |
+| Tests | Coverage | TDD Commits | BDD | Action |
+|-------|----------|-------------|-----|--------|
+| ✅ Pass | >= 70% | ✅ Yes | ✅ Yes | → Tested |
+| ✅ Pass | >= 70% | ❌ No | any | → Open (no TDD) |
+| ✅ Pass | < 70% | any | any | → Open (low coverage) |
+| ❌ Fail | any | any | any | → Open (tests fail) |
+
+---
+
+## Rejection Reasons
+
+| Reason | Required Action |
+|--------|-----------------|
+| Tests failing | Fix the failing tests |
+| Coverage < 70% | Add more tests |
+| No TDD commits | Redo with proper TDD |
+| Missing BDD scenarios | Add tests for all scenarios |
+| No error handling tests | Add error case tests |
+| Bare except clauses | Use specific exceptions |
+| Hardcoded values | Move to config/env |
 
 ---
 
@@ -108,13 +291,19 @@ Repeat for next Review task.
 TESTER Results
 ═══════════════════════════════════════════════════════════
 
-POD-2: ✅ → Tested (85% coverage)
-POD-3: ❌ → Open (3 tests failing) GitHub #5
-POD-4: ❌ → Open (45% coverage) GitHub #6
+TASK-ID: ✅ → Tested
+  Tests: 15 passing
+  Coverage: 85%
+  BDD: 5/5 scenarios
+  Commits: 10 TDD commits verified
 
-Processed: 3
+TASK-ID+1: ❌ → Open (GitHub #12)
+  Issue: Coverage 45% < 70%
+  Missing: Edge case tests
+
+Processed: 2
 Approved: 1
-Returned: 2
+Returned: 1
 ```
 
 Task ID (optional): $ARGUMENTS
