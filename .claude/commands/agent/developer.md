@@ -144,7 +144,7 @@ test(TASK-ID): red: step definitions for scenario_name
 Refs TASK-ID
 EOF
 )"
-git push origin master
+git push origin main
 ```
 
 #### 5.2 GREEN Phase - Implement Service
@@ -177,7 +177,7 @@ feat(TASK-ID): green: implement scenario_name
 Refs TASK-ID
 EOF
 )"
-git push origin master
+git push origin main
 ```
 
 #### 5.3 REFACTOR Phase (if needed)
@@ -199,7 +199,7 @@ refactor(TASK-ID): clean up implementation
 Refs TASK-ID
 EOF
 )"
-git push origin master
+git push origin main
 ```
 
 **Repeat steps 5.1-5.3 for EACH scenario in .feature file.**

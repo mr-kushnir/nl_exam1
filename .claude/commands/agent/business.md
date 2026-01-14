@@ -446,7 +446,7 @@ docs(EPIC-ID): initialize project documentation
 Refs EPIC-ID
 EOF
 )"
-git push origin master
+git push origin main
 ```
 
 **Rule: `git commit` → `git push` — always together, small iterations.**
