@@ -1,8 +1,6 @@
 """
 Yandex SpeechKit Voice Recognition Service.
 Uses Yandex SpeechKit STT API for transcription.
-
-Replaces ElevenLabs for better Yandex Cloud integration.
 """
 import os
 import httpx
@@ -25,13 +23,31 @@ class SpeechService:
     """Yandex SpeechKit service for voice message transcription"""
 
     def __init__(self):
-        self.api_key = os.getenv("YC_TOKEN", "")
+        self.oauth_token = os.getenv("YC_TOKEN", "")
         self.folder_id = os.getenv("YC_FOLDER_ID", "")
         self.api_url = "https://stt.api.cloud.yandex.net/speech/v1/stt:recognize"
+        self._iam_token = None
+
+    def _get_iam_token(self) -> Optional[str]:
+        """Get IAM token from OAuth token"""
+        if not self.oauth_token:
+            return None
+
+        try:
+            response = httpx.post(
+                "https://iam.api.cloud.yandex.net/iam/v1/tokens",
+                json={"yandexPassportOauthToken": self.oauth_token},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return response.json().get("iamToken")
+        except Exception:
+            pass
+        return None
 
     def _call_api(self, audio_data: bytes) -> TranscriptionResult:
         """Call Yandex SpeechKit STT API"""
-        if not self.api_key:
+        if not self.oauth_token:
             return TranscriptionResult(
                 text="",
                 success=False,
@@ -45,8 +61,17 @@ class SpeechService:
                 error="Yandex Cloud folder ID not configured"
             )
 
+        # Get fresh IAM token
+        iam_token = self._get_iam_token()
+        if not iam_token:
+            return TranscriptionResult(
+                text="",
+                success=False,
+                error="Failed to get IAM token"
+            )
+
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {iam_token}",
         }
 
         params = {
@@ -63,17 +88,24 @@ class SpeechService:
                     params=params,
                     content=audio_data
                 )
-                response.raise_for_status()
-                result = response.json()
 
-                text = result.get("result", "")
-                if text:
-                    return TranscriptionResult(text=text, success=True)
+                if response.status_code == 200:
+                    result = response.json()
+                    text = result.get("result", "")
+                    if text:
+                        return TranscriptionResult(text=text, success=True)
+                    else:
+                        return TranscriptionResult(
+                            text="",
+                            success=False,
+                            error="Empty transcription result"
+                        )
                 else:
+                    error_msg = response.json().get("error_message", response.text[:200])
                     return TranscriptionResult(
                         text="",
                         success=False,
-                        error="Empty transcription result"
+                        error=f"API error {response.status_code}: {error_msg}"
                     )
 
         except httpx.TimeoutException:
@@ -81,13 +113,6 @@ class SpeechService:
                 text="",
                 success=False,
                 error="Transcription timeout"
-            )
-        except httpx.HTTPStatusError as e:
-            error_text = e.response.text[:200] if e.response else str(e)
-            return TranscriptionResult(
-                text="",
-                success=False,
-                error=f"API error {e.response.status_code}: {error_text}"
             )
         except Exception as e:
             return TranscriptionResult(
