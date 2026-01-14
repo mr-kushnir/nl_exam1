@@ -232,6 +232,26 @@ Refs NLE-2
 
 ## Development Log
 
+### 2026-01-14: Security Scan (SECURITY Agent)
+
+**Scan Results:**
+- SAST (Bandit): 2 MEDIUM severity issues
+- Dependencies (pip-audit): ✅ No vulnerabilities
+- Hardcoded Secrets: ✅ None found
+
+**Issues Found:**
+
+| Issue | Severity | Location | GitHub Issue |
+|-------|----------|----------|--------------|
+| SQL Injection (CWE-89) | MEDIUM | src/db/ydb_client.py:118-122 | #1 |
+| SQL Injection (CWE-89) | MEDIUM | src/db/ydb_client.py:130-131 | #2 |
+
+**Status:** ⚠️ BLOCKED - Must fix SQL injection vulnerabilities before deployment
+
+**Action Required:**
+- Fix `select()` method - use parameterized queries
+- Fix `delete()` method - use parameterized queries
+
 ### 2026-01-14: Agent System Update
 
 **Changes:**
