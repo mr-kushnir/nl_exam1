@@ -1,4 +1,4 @@
-# NLExam - Expense Tracker Bot
+# NLExam - Technical Documentation
 
 ## Project Overview
 
@@ -6,6 +6,14 @@ Telegram-бот для учёта расходов с поддержкой ес�
 
 **Production URL:** https://bba7ha844a2gpf5pou9e.containers.yandexcloud.net/
 **Telegram Bot:** @nlexambot
+**Last Deploy:** 2026-01-14 18:50 (revision: bbatt560gadr11291hub)
+
+## Related Documentation
+
+| Document | Description |
+|----------|-------------|
+| [README.md](README.md) | User documentation, quick start |
+| [DEVGUIDE.md](DEVGUIDE.md) | Development principles, agent pipeline |
 
 ---
 
@@ -70,7 +78,8 @@ nlexam/
 │   └── youtrack_kb.py       # KB API client
 ├── Dockerfile
 ├── requirements.txt
-├── CLAUDE.md               # This file
+├── CLAUDE.md               # Technical documentation (this file)
+├── DEVGUIDE.md             # Development principles & agent pipeline
 └── README.md               # User documentation
 ```
 
@@ -235,6 +244,18 @@ Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
 ---
 
 ## Development Log
+
+### 2026-01-14: Production Deploy with Security Fixes
+
+**Deployed:**
+- Image: `cr.yandex/crp4sc3du99ee1cokb1t/nlexam-bot:20260114-185000`
+- Revision: `bbatt560gadr11291hub`
+- Health: OK
+
+**Includes:**
+- SQL Injection fix in insert() method
+- Updated pip>=25.3, urllib3>=2.6.3
+- All 171 tests passing
 
 ### 2026-01-14: Security Issues Resolved
 
