@@ -87,3 +87,41 @@ class TestYaGPTExpenseParser:
         intent = service.detect_intent("обед 500")
 
         assert intent.type == "add_expense"
+
+    def test_parse_multiple_expenses_single(self, service):
+        """Scenario: Parse single expense returns list with one item"""
+        result = service.parse_multiple_expenses("кофе 300")
+
+        assert isinstance(result, list)
+        assert len(result) >= 1
+        assert result[0].amount == 300
+
+    def test_parse_multiple_expenses_empty_for_invalid(self, service):
+        """Scenario: Invalid message returns empty list"""
+        result = service.parse_multiple_expenses("привет")
+
+        assert isinstance(result, list)
+        assert len(result) == 0
+
+    def test_generate_multiple_confirmation_single(self, service):
+        """Scenario: Single expense generates simple confirmation"""
+        expenses = [ParsedExpense(item="кофе", amount=300, category="Еда")]
+        response = service.generate_multiple_confirmation(expenses)
+
+        assert "кофе" in response
+        assert "300" in response
+
+    def test_generate_multiple_confirmation_multiple(self, service):
+        """Scenario: Multiple expenses generate list confirmation"""
+        expenses = [
+            ParsedExpense(item="жене", amount=500, category="Переводы"),
+            ParsedExpense(item="маме", amount=500, category="Переводы"),
+            ParsedExpense(item="пиво", amount=1000, category="Развлечения"),
+        ]
+        response = service.generate_multiple_confirmation(expenses)
+
+        assert "3 расход" in response
+        assert "жене" in response
+        assert "маме" in response
+        assert "пиво" in response
+        assert "2 000" in response or "2,000" in response  # total

@@ -9,7 +9,7 @@ import re
 import json
 import httpx
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -239,6 +239,81 @@ class YaGPTService:
 
         return None
 
+    def parse_multiple_expenses(self, message: str) -> List[ParsedExpense]:
+        """Parse multiple expenses from user message using YaGPT.
+
+        Handles messages like: "жене перевел 500 и маме 500 и на пиво 1000"
+        Returns list of ParsedExpense objects.
+        """
+        if not self._looks_like_expense(message):
+            return []
+
+        system_prompt = f"""Ты парсер расходов. Извлеки ВСЕ расходы из сообщения пользователя.
+Сообщение может содержать один или несколько расходов, перечисленных через "и", запятую или просто подряд.
+
+Для каждого расхода извлеки:
+1. item - на что потрачено (краткое описание, 1-3 слова)
+2. amount - сумма в рублях (целое число)
+3. category - категория из списка: {', '.join(CATEGORIES)}
+
+Правила преобразования сумм:
+- тыща/тысяча/штука/косарь/кусок = 1000
+- сотка/сотня = 100
+- полтинник/полтос = 50
+- пятихатка = 500
+- двадцатка = 20
+- 2к/5к = 2000/5000
+- "две тыщи" = 2000, "три сотни" = 300
+
+Категории:
+- Переводы: маме, папе, жене, мужу, другу, перевод, скинул, отправил
+- Еда: кофе, обед, завтрак, ужин, продукты, ресторан
+- Транспорт: такси, метро, бензин
+- Развлечения: бар, кино, пиво, вино, игры
+- Подписки: подписка, netflix, spotify
+- Здоровье: аптека, врач, спортзал
+- Другое: если не подходит ни одна
+
+Отвечай ТОЛЬКО валидным JSON массивом:
+[{{"item": "описание", "amount": число, "category": "категория"}}]
+или [] если это не расход."""
+
+        response = self._call_yagpt(message, system_prompt)
+        expenses = []
+
+        if response:
+            try:
+                # Clean response
+                response = response.strip()
+                response = re.sub(r'^```json\s*', '', response)
+                response = re.sub(r'\s*```$', '', response)
+                response = response.strip()
+
+                # Extract JSON array
+                json_match = re.search(r'\[.*\]', response, re.DOTALL)
+                if json_match:
+                    data = json.loads(json_match.group())
+
+                    if isinstance(data, list):
+                        for item_data in data:
+                            if isinstance(item_data, dict):
+                                item = item_data.get("item", "")
+                                amount = int(item_data.get("amount", 0))
+                                category = item_data.get("category", "Другое")
+
+                                if item and amount > 0:
+                                    if category not in CATEGORIES:
+                                        category = self._detect_category(item)
+                                    expenses.append(ParsedExpense(
+                                        item=item,
+                                        amount=amount,
+                                        category=category
+                                    ))
+            except (json.JSONDecodeError, ValueError, TypeError) as e:
+                print(f"Parse error: {e}, response: {response}")
+
+        return expenses
+
     def detect_intent(self, message: str) -> Intent:
         """Detect user intent from message"""
         message_lower = message.lower().strip()
@@ -268,6 +343,32 @@ class YaGPTService:
         }
         emoji = emoji_map.get(expense.category, "✅")
         return f"{emoji} Записал: {expense.item} — {expense.amount}₽ ({expense.category})"
+
+    def generate_multiple_confirmation(self, expenses: List[ParsedExpense]) -> str:
+        """Generate confirmation response for multiple saved expenses"""
+        if not expenses:
+            return "Не удалось распознать расходы"
+
+        if len(expenses) == 1:
+            return self.generate_confirmation(expenses[0])
+
+        emoji_map = {
+            "Еда": "🍕", "Транспорт": "🚕", "Развлечения": "🎉",
+            "Подписки": "📱", "Здоровье": "💊", "Подарки": "🎁",
+            "Образование": "📚", "Одежда": "👟", "Переводы": "💸",
+            "Дом": "🏠", "Связь": "📞", "Другое": "📝"
+        }
+
+        lines = [f"✅ Записал {len(expenses)} расходов:\n"]
+        total = 0
+
+        for exp in expenses:
+            emoji = emoji_map.get(exp.category, "📝")
+            lines.append(f"{emoji} {exp.item} — {exp.amount}₽ ({exp.category})")
+            total += exp.amount
+
+        lines.append(f"\n💰 Итого: {total:,}₽")
+        return "\n".join(lines)
 
     def generate_report(self, category_totals: dict, total: int) -> str:
         """Generate monthly report response"""

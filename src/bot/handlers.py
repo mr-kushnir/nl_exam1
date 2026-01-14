@@ -78,28 +78,29 @@ class BotHandlers:
         return await self.handle_message(user_id, result.text)
 
     async def _handle_expense(self, user_id: int, text: str) -> str:
-        """Handle expense message"""
-        # Parse expense
-        parsed = self.yagpt.parse_expense(text)
+        """Handle expense message (supports multiple expenses)"""
+        # Parse expenses (can be one or multiple)
+        parsed_list = self.yagpt.parse_multiple_expenses(text)
 
-        if not parsed:
+        if not parsed_list:
             return (
                 "🤔 Не понял, что записать.\n\n"
                 "Напиши в формате: `кофе 300`\n"
                 "Или отправь голосовое сообщение."
             )
 
-        # Save expense
-        expense = Expense(
-            user_id=user_id,
-            item=parsed.item,
-            amount=parsed.amount,
-            category=parsed.category
-        )
-        self.storage.save_expense(expense)
+        # Save all expenses
+        for parsed in parsed_list:
+            expense = Expense(
+                user_id=user_id,
+                item=parsed.item,
+                amount=parsed.amount,
+                category=parsed.category
+            )
+            self.storage.save_expense(expense)
 
         # Generate confirmation
-        return self.yagpt.generate_confirmation(parsed)
+        return self.yagpt.generate_multiple_confirmation(parsed_list)
 
     async def _handle_report(self, user_id: int) -> str:
         """Handle monthly report request"""
