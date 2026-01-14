@@ -48,7 +48,54 @@ git config user.email "bot@example.com" || true
 git config user.name "Developer Bot" || true
 ```
 
-### Step 2: Find Open Tasks
+### Step 2: Check Security Issues (GitHub + YouTrack Comments)
+
+**⚠️ SECURITY FIRST: Before picking new tasks, check for security vulnerabilities!**
+
+**2.1 Check GitHub Issues for security vulnerabilities:**
+```bash
+# List open security issues from GitHub
+gh issue list --label "security" --state open
+gh issue list --label "vulnerability" --state open
+gh issue list --label "bug" --state open
+
+# View details of each security issue
+gh issue view ISSUE_NUMBER
+```
+
+**2.2 Check YouTrack task comments for security findings:**
+```bash
+python -c "
+import os, requests
+from dotenv import load_dotenv
+load_dotenv()
+url = os.getenv('YOUTRACK_URL').rstrip('/')
+token = os.getenv('YOUTRACK_TOKEN')
+project = os.getenv('YOUTRACK_PROJECT')
+headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/json'}
+# Get tasks in Open or In Progress state
+r = requests.get(f'{url}/api/issues?fields=idReadable,summary,comments(text,author(name))&query=project:{project}%20State:Open,{{In%20Progress}}', headers=headers)
+for t in r.json():
+    print(f\"\\n=== {t['idReadable']}: {t['summary']} ===\")
+    for c in t.get('comments', []):
+        if 'security' in c['text'].lower() or 'vulnerability' in c['text'].lower() or 'CWE' in c['text']:
+            print(f\"  [SECURITY] {c['author']['name']}: {c['text'][:200]}...\")
+"
+```
+
+**2.3 Priority order:**
+1. **CRITICAL**: GitHub issues with `security` or `vulnerability` labels
+2. **HIGH**: YouTrack comments mentioning security/CWE findings
+3. **NORMAL**: Regular Open tasks
+
+**⚠️ If security issues exist:**
+- Fix them FIRST before picking new features
+- Reference the GitHub issue in commit: `fix(TASK-ID): resolve SQL injection (closes #1)`
+- Close GitHub issue after fix is verified
+
+---
+
+### Step 3: Find Open Tasks
 
 ```bash
 python -c "
@@ -64,7 +111,7 @@ for t in r.json(): print(f\"{t['idReadable']}: {t['summary']}\")
 "
 ```
 
-### Step 3: Pick Task and Update State
+### Step 4: Pick Task and Update State
 
 ```bash
 # Update task to In Progress via API
@@ -81,7 +128,7 @@ requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text
 "
 ```
 
-### Step 4: Read BDD from KB and Verify Sync with Local
+### Step 5: Read BDD from KB and Verify Sync with Local
 
 ```bash
 # Ensure pytest-bdd is installed
@@ -117,7 +164,7 @@ diff /tmp/kb_bdd.txt tests/features/feature_name.feature || echo "WARNING: KB an
 ls tests/steps/test_*.py
 ```
 
-### Step 5: TDD Implementation with BDD
+### Step 6: TDD Implementation with BDD
 
 **For EACH Gherkin scenario in .feature file:**
 
@@ -234,7 +281,7 @@ git push origin main
 
 **Repeat steps 5.1-5.3 for EACH scenario in .feature file.**
 
-### Step 6: Verify All Tests
+### Step 7: Verify All Tests
 
 ```bash
 python -m pytest tests/ -v --cov=src --cov-report=term-missing
@@ -244,7 +291,7 @@ python -m pytest tests/ -v --cov=src --cov-report=term-missing
 - All tests MUST pass
 - Coverage MUST be >= 70%
 
-### Step 7: Update CLAUDE.md (Development Log)
+### Step 8: Update CLAUDE.md (Development Log)
 
 **⚠️ Document AI-assisted development progress:**
 
@@ -286,7 +333,7 @@ git commit -m "docs(TASK-ID): update development log"
 git push origin main
 ```
 
-### Step 8: Move to Review
+### Step 9: Move to Review
 
 ```bash
 git push origin main
@@ -318,7 +365,7 @@ requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text
 "
 ```
 
-### Step 9: Next Task
+### Step 10: Next Task
 
 Repeat for next Open task.
 
@@ -348,6 +395,9 @@ Refs TASK-ID
 
 Before moving to Review:
 
+- [ ] **GitHub security issues checked** (no open vulnerabilities)
+- [ ] **YouTrack comments reviewed** (no unaddressed security findings)
+- [ ] All security fixes committed with GitHub issue reference (closes #N)
 - [ ] All .feature files have corresponding step definitions
 - [ ] All step definitions implemented (not stubs)
 - [ ] All BDD scenarios pass (`pytest tests/steps/ -v`)
