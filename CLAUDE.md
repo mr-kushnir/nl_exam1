@@ -52,22 +52,22 @@ Use Claude Code's native YouTrack integration:
 
 ```
 # Read task
-"Read YouTrack issue POD-1"
+"Read YouTrack issue NLE-1"
 
 # Create subtask
-"Create YouTrack issue in POD project:
+"Create YouTrack issue in NLE project:
  Summary: Implement news parser
- Description: See KB article POD-A-5
- Parent: POD-1"
+ Description: See KB article NLE-A-5
+ Parent: NLE-1"
 
 # Update state
-"Update YouTrack issue POD-2 state to Review"
+"Update YouTrack issue NLE-2 state to Review"
 
 # Add comment
-"Add comment to POD-2: Implementation complete"
+"Add comment to NLE-2: Implementation complete"
 
 # Search
-"Find YouTrack issues in POD with state Open"
+"Find YouTrack issues in NLE with state Open"
 ```
 
 ### Knowledge Base (via API)
@@ -79,16 +79,16 @@ MCP doesn't support KB, use script:
 python scripts/youtrack_kb.py list
 
 # Get article content
-python scripts/youtrack_kb.py get POD-A-5
+python scripts/youtrack_kb.py get NLE-A-5
 
 # Get only BDD/Gherkin scenarios
-python scripts/youtrack_kb.py bdd POD-A-5
+python scripts/youtrack_kb.py bdd NLE-A-5
 
 # Create article
 python scripts/youtrack_kb.py create "BDD: News Collection" "# Content..."
 
 # Update article
-python scripts/youtrack_kb.py update POD-A-5 "# Updated content..."
+python scripts/youtrack_kb.py update NLE-A-5 "# Updated content..."
 ```
 
 ---
@@ -100,7 +100,7 @@ Use Claude Code's native GitHub MCP:
 ```
 # Create issue
 "Create GitHub issue:
- Title: Test failures in POD-2
+ Title: Test failures in NLE-2
  Body: Coverage below 70%
  Labels: bug, testing"
 
@@ -108,7 +108,7 @@ Use Claude Code's native GitHub MCP:
 "Close GitHub issue #5 with comment: Fixed in commit abc123"
 
 # Commit
-"Commit changes with message: feat(POD-2): implement news parser"
+"Commit changes with message: feat(NLE-2): implement news parser"
 
 # Push
 "Push to origin main"
@@ -149,7 +149,7 @@ Use Claude Code's native GitHub MCP:
 # YouTrack (for KB API)
 YOUTRACK_URL=https://xxx.youtrack.cloud
 YOUTRACK_TOKEN=perm:xxx
-YOUTRACK_PROJECT=POD
+YOUTRACK_PROJECT=NLE
 
 # GitHub (MCP uses GITHUB_TOKEN from environment)
 GITHUB_TOKEN=ghp_xxx
@@ -186,11 +186,11 @@ Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
 
 Example:
 ```
-feat(POD-2): implement news parser
+feat(NLE-2): implement news parser
 
 - Add TechCrunch scraper
 - Parse articles from last 24h
 - Cache in YDB
 
-Refs POD-2
+Refs NLE-2
 ```

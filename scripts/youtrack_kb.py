@@ -20,7 +20,7 @@ class YouTrackKB:
     def __init__(self):
         self.base_url = os.getenv('YOUTRACK_URL', '').rstrip('/')
         self.token = os.getenv('YOUTRACK_TOKEN', '')
-        self.project = os.getenv('YOUTRACK_PROJECT', 'POD')
+        self.project = os.getenv('YOUTRACK_PROJECT', 'NLE')
         self.headers = {
             'Authorization': f'Bearer {self.token}',
             'Accept': 'application/json',
@@ -73,7 +73,7 @@ class YouTrackKB:
         return result if isinstance(result, list) else []
     
     def get_article(self, article_id: str) -> Optional[dict]:
-        """Get article by ID (e.g., POD-A-5)"""
+        """Get article by ID (e.g., NLE-A-5)"""
         return self._request(
             'GET', 
             f"articles/{article_id}?fields=id,idReadable,summary,content,updated"

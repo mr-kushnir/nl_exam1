@@ -1,6 +1,24 @@
-DEPLOYER Agent: Ready tasks (MCP) → Build → Deploy → Done
+DEPLOYER Agent: Ready tasks (MCP) → Build → Deploy → Update Docs → Done
 
 **Input:** None (deploys all Ready) or specific task ID
+
+## CRITICAL REQUIREMENTS
+
+⚠️ **MANDATORY ACTIONS** ⚠️
+
+The DEPLOYER agent MUST:
+1. **Verify Infrastructure** - Check all resources exist
+2. **Build & Push** - Docker image to registry
+3. **Deploy** - To Yandex Cloud Serverless Container
+4. **Health Check** - Verify deployment is healthy
+5. **Update README.md** - Add deployment URLs, version info
+6. **Update CLAUDE.md** - Update deployment status
+7. **Commit Documentation** - Git commit with deployment info
+8. **Mark Done** - Update task states
+
+**NO deployment is complete without documentation updates.**
+
+---
 
 ## Prerequisites
 
@@ -24,7 +42,7 @@ This creates:
 ### Step 1: Find Ready Tasks via MCP
 
 ```
-Find YouTrack issues in project POD with state Ready
+Find YouTrack issues in project NLE with state Ready
 ```
 
 ### Step 2: Verify Infrastructure
@@ -96,12 +114,94 @@ else
 fi
 ```
 
-### Step 7: Mark Tasks as Done via MCP
+### Step 7: Update README.md
+
+**⚠️ MANDATORY - Update deployment information:**
+
+```bash
+# Read current README.md
+cat README.md
+
+# Update with deployment info at the end of Deployment section
+cat >> README.md << 'EOF'
+
+## Live Deployment
+
+| Environment | URL | Status |
+|-------------|-----|--------|
+| Production | https://YOUR_DOMAIN | ✅ Active |
+
+**Current Version:** YYYYMMDD-HHMMSS
+
+### Deployment History
+
+| Date | Version | Status |
+|------|---------|--------|
+| YYYY-MM-DD | YYYYMMDD-HHMMSS | ✅ Deployed |
+
+EOF
+```
+
+Or use Edit tool to update existing deployment section with actual values.
+
+### Step 8: Update CLAUDE.md
+
+**⚠️ MANDATORY - Add deployment status:**
+
+```bash
+# Append deployment status to CLAUDE.md
+cat >> CLAUDE.md << 'EOF'
+
+---
+
+## Deployment Status
+
+| Metric | Value |
+|--------|-------|
+| Last Deployment | YYYY-MM-DD HH:MM |
+| Version | YYYYMMDD-HHMMSS |
+| Environment | Production |
+| Health Status | ✅ OK |
+
+### Deployed Services
+
+| Service | Endpoint | Status |
+|---------|----------|--------|
+| API Gateway | https://domain.ru | ✅ Active |
+| Container | cr.yandex/xxx/app | ✅ Running |
+| Database | YDB | ✅ Connected |
+| Storage | S3 | ✅ Available |
+
+EOF
+```
+
+### Step 9: Commit Documentation
+
+**⚠️ MANDATORY COMMIT:**
+
+```bash
+git add README.md CLAUDE.md
+git commit -m "$(cat <<'EOF'
+docs(TASK-ID): deployment documentation update
+
+- Updated README.md with live deployment URLs
+- Updated CLAUDE.md with deployment status
+- Version: YYYYMMDD-HHMMSS
+- Health: OK
+
+Refs TASK-ID
+EOF
+)"
+
+git push origin main
+```
+
+### Step 10: Mark Tasks as Done via MCP
 
 For each Ready task:
 ```
-Update YouTrack issue POD-2 state to "Done"
-Add comment to POD-2:
+Update YouTrack issue NLE-2 state to "Done"
+Add comment to NLE-2:
 
 🚀 **DEPLOYED**
 
@@ -110,25 +210,44 @@ Add comment to POD-2:
 | URL | https://podcast.rapidapp.ru |
 | Version | 20260114-153000 |
 | Health | ✅ OK |
+| Docs | README.md, CLAUDE.md updated |
 ```
 
-### Step 8: Check Epic Completion
+### Step 12: Check Epic Completion
 
 ```
-Find YouTrack issues that are subtasks of POD-1
+Find YouTrack issues that are subtasks of NLE-1
 ```
 
 If all subtasks are Done:
 ```
-Update YouTrack issue POD-1 state to "Done"
-Add comment to POD-1:
+Update YouTrack issue NLE-1 state to "Done"
+Add comment to NLE-1:
 
 ✅ **EPIC COMPLETE**
 
 All subtasks deployed to production.
 
 **URL:** https://podcast.rapidapp.ru
+
+**Documentation:**
+- README.md: Updated with deployment info
+- CLAUDE.md: Updated with deployment status
 ```
+
+---
+
+## Verification Checklist
+
+Before completing:
+
+- [ ] All Ready tasks deployed
+- [ ] Health check passed
+- [ ] README.md updated with deployment URLs
+- [ ] CLAUDE.md updated with deployment status
+- [ ] Documentation committed to git
+- [ ] Tasks marked as Done
+- [ ] Epic completed (if all subtasks done)
 
 ---
 
@@ -158,12 +277,17 @@ yc serverless container rollback --container-name $APP_NAME --revision-id $PREV
 🌐 URL: https://podcast.rapidapp.ru
 🏥 Health: ✅ OK
 
-Tasks:
-  POD-2: ✅ Done
-  POD-3: ✅ Done
-  POD-4: ✅ Done
+📝 Documentation:
+  README.md: Updated ✅
+  CLAUDE.md: Updated ✅
+  Commit: docs(NLE-2): deployment documentation update
 
-Epic POD-1: ✅ Complete
+Tasks:
+  NLE-2: ✅ Done
+  NLE-3: ✅ Done
+  NLE-4: ✅ Done
+
+Epic NLE-1: ✅ Complete
 ```
 
 Task ID (optional): $ARGUMENTS

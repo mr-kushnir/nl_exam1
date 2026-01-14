@@ -1,6 +1,6 @@
 Full autonomous pipeline: BUSINESS → DEVELOPER → TESTER → SECURITY → DEPLOYER
 
-**Input:** Epic ID (e.g., POD-1)
+**Input:** Epic ID (e.g., NLE-1)
 
 ## Pipeline Overview
 

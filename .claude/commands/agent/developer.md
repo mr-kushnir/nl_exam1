@@ -69,31 +69,64 @@ requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text
 "
 ```
 
-### Step 4: Read BDD from KB
+### Step 4: Read BDD from KB and Verify Structure
 
 ```bash
+# Ensure pytest-bdd is installed
+pip install pytest-bdd --quiet
+
+# Read BDD scenarios from KB
 python scripts/youtrack_kb.py bdd ARTICLE-ID
+
+# Verify .feature file exists (created by BUSINESS)
+ls tests/features/*.feature
+
+# Verify step definitions stub exists (created by BUSINESS)
+ls tests/steps/test_*.py
 ```
 
-### Step 5: TDD Implementation
+### Step 5: TDD Implementation with BDD
 
-**For EACH Gherkin scenario:**
+**For EACH Gherkin scenario in .feature file:**
 
-#### 5.1 RED Phase - Write Failing Test
+#### 5.1 RED Phase - Implement Step Definitions
+
+Update the stub step definitions created by BUSINESS agent:
 
 ```python
-# tests/test_feature.py
-def test_scenario_name():
-    """Scenario: Description from Gherkin"""
-    # Arrange
-    # Act
-    # Assert
-    pass
+# tests/steps/test_feature_name.py
+"""Step definitions for Feature Name."""
+import pytest
+from pytest_bdd import scenarios, given, when, then, parsers
+
+# Load scenarios from .feature file
+scenarios('../features/feature_name.feature')
+
+
+@given('precondition')
+def given_precondition():
+    """Set up precondition."""
+    # Actual implementation
+    return {"context": "value"}
+
+
+@when('action')
+def when_action(given_precondition):
+    """Perform action."""
+    result = some_service.do_action(given_precondition)
+    return result
+
+
+@then('expected result')
+def then_expected_result(when_action):
+    """Verify expected result."""
+    assert when_action is not None
+    # Add assertions
 ```
 
-**Run test to verify it fails:**
+**Run test to verify it fails (no implementation yet):**
 ```bash
-python -m pytest tests/test_feature.py::test_scenario_name -v
+python -m pytest tests/steps/test_feature_name.py -v
 # Must see FAILED
 ```
 
@@ -101,30 +134,31 @@ python -m pytest tests/test_feature.py::test_scenario_name -v
 ```bash
 git add tests/
 git commit -m "$(cat <<'EOF'
-test(TASK-ID): red: failing test for scenario_name
+test(TASK-ID): red: step definitions for scenario_name
 
-- Added test for: [scenario description]
-- Test fails as expected (no implementation yet)
+- Implemented step definitions for: [scenario description]
+- Test fails as expected (no service implementation yet)
 
 Refs TASK-ID
 EOF
 )"
 ```
 
-#### 5.2 GREEN Phase - Implement
+#### 5.2 GREEN Phase - Implement Service
 
 Write minimal code to make test pass:
 ```python
-# src/module/feature.py
-class Feature:
-    def method(self):
-        # Implementation
-        pass
+# src/services/feature_service.py
+class FeatureService:
+    def do_action(self, context):
+        """Implementation to satisfy BDD scenario."""
+        # Minimal implementation
+        return result
 ```
 
 **Run test to verify it passes:**
 ```bash
-python -m pytest tests/test_feature.py::test_scenario_name -v
+python -m pytest tests/steps/test_feature_name.py -v
 # Must see PASSED
 ```
 
@@ -135,7 +169,7 @@ git commit -m "$(cat <<'EOF'
 feat(TASK-ID): green: implement scenario_name
 
 - Implemented: [what was implemented]
-- Test now passes
+- BDD scenario now passes
 
 Refs TASK-ID
 EOF
@@ -163,7 +197,7 @@ EOF
 )"
 ```
 
-**Repeat steps 5.1-5.3 for EACH scenario.**
+**Repeat steps 5.1-5.3 for EACH scenario in .feature file.**
 
 ### Step 6: Verify All Tests
 
@@ -237,7 +271,9 @@ Refs TASK-ID
 
 Before moving to Review:
 
-- [ ] All Gherkin scenarios have tests
+- [ ] All .feature files have corresponding step definitions
+- [ ] All step definitions implemented (not stubs)
+- [ ] All BDD scenarios pass (`pytest tests/steps/ -v`)
 - [ ] All tests pass
 - [ ] Coverage >= 70%
 - [ ] At least 2 commits per scenario (RED + GREEN)
@@ -254,17 +290,24 @@ DEVELOPER: TASK-ID → Review
 ═══════════════════════════════════════════════════════════
 
 📚 BDD Source: ARTICLE-ID
+📄 Feature file: tests/features/feature_name.feature
 📝 Scenarios: 4
 🔄 TDD Cycles: 4
 
+📁 Files:
+  - tests/features/feature_name.feature
+  - tests/steps/test_feature_name.py
+  - src/services/feature_service.py
+
 📦 Commits:
-  - test(TASK-ID): red: failing test for scenario1
+  - test(TASK-ID): red: step definitions for scenario1
   - feat(TASK-ID): green: implement scenario1
-  - test(TASK-ID): red: failing test for scenario2
+  - test(TASK-ID): red: step definitions for scenario2
   - feat(TASK-ID): green: implement scenario2
   ... (8 commits total)
 
-✅ Tests: 15 passing
+✅ BDD Tests: 4 scenarios passing
+✅ Unit Tests: 15 passing
 📊 Coverage: 85%
 
 Next task: TASK-ID+1 [Open]

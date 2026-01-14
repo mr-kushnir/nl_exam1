@@ -80,15 +80,35 @@ python -m pytest tests/ --cov=src --cov-report=term-missing --cov-report=html --
 
 ### Step 5: Verify BDD Compliance
 
-Read BDD scenarios from KB:
+**5.1 Check .feature files exist:**
+```bash
+echo "=== Feature Files ==="
+ls -la tests/features/*.feature 2>/dev/null || echo "ERROR: No .feature files found!"
+```
+
+**5.2 Check step definitions exist:**
+```bash
+echo "=== Step Definitions ==="
+ls -la tests/steps/test_*.py 2>/dev/null || echo "ERROR: No step definitions found!"
+```
+
+**5.3 Run BDD tests:**
+```bash
+echo "=== BDD Test Results ==="
+python -m pytest tests/steps/ -v --tb=short 2>&1
+```
+
+**5.4 Compare with KB scenarios:**
 ```bash
 python scripts/youtrack_kb.py bdd ARTICLE-ID
 ```
 
-**For EACH Gherkin scenario, verify:**
-- [ ] Test exists for this scenario
-- [ ] Test name references scenario
-- [ ] Test covers Given/When/Then
+**For EACH Gherkin scenario in .feature file, verify:**
+- [ ] Corresponding step definitions exist
+- [ ] Steps are not stubs (have actual assertions)
+- [ ] Test covers Given/When/Then flow
+
+**⚠️ No .feature files or step definitions → REJECT immediately**
 
 ### Step 6: Test Edge Cases
 
