@@ -4,14 +4,16 @@ DEVELOPER Agent: Pick Open tasks (MCP) → Read BDD from KB (API) → TDD → Re
 
 ## CRITICAL REQUIREMENTS
 
-⚠️ **MANDATORY GIT COMMITS** ⚠️
+⚠️ **MANDATORY GIT COMMITS + PUSH** ⚠️
 
-The DEVELOPER agent MUST commit after EVERY TDD phase:
-1. **RED** - Commit failing test BEFORE implementation
-2. **GREEN** - Commit working implementation
-3. **REFACTOR** - Commit refactored code (if any)
+The DEVELOPER agent MUST commit AND push after EVERY TDD phase:
+1. **RED** - Commit + push failing test BEFORE implementation
+2. **GREEN** - Commit + push working implementation
+3. **REFACTOR** - Commit + push refactored code (if any)
 
-**NO EXCEPTIONS. Each commit must happen IMMEDIATELY after completing the phase.**
+**NO EXCEPTIONS. Each commit + push must happen IMMEDIATELY after completing the phase.**
+
+**Rule: `git commit` → `git push` — always together, small iterations.**
 
 ---
 
@@ -130,7 +132,7 @@ python -m pytest tests/steps/test_feature_name.py -v
 # Must see FAILED
 ```
 
-**⚠️ MANDATORY COMMIT - RED:**
+**⚠️ MANDATORY COMMIT + PUSH - RED:**
 ```bash
 git add tests/
 git commit -m "$(cat <<'EOF'
@@ -142,6 +144,7 @@ test(TASK-ID): red: step definitions for scenario_name
 Refs TASK-ID
 EOF
 )"
+git push origin master
 ```
 
 #### 5.2 GREEN Phase - Implement Service
@@ -162,7 +165,7 @@ python -m pytest tests/steps/test_feature_name.py -v
 # Must see PASSED
 ```
 
-**⚠️ MANDATORY COMMIT - GREEN:**
+**⚠️ MANDATORY COMMIT + PUSH - GREEN:**
 ```bash
 git add src/ tests/
 git commit -m "$(cat <<'EOF'
@@ -174,6 +177,7 @@ feat(TASK-ID): green: implement scenario_name
 Refs TASK-ID
 EOF
 )"
+git push origin master
 ```
 
 #### 5.3 REFACTOR Phase (if needed)
@@ -183,7 +187,7 @@ Clean up code without changing behavior:
 python -m pytest tests/ -v  # All tests must still pass
 ```
 
-**⚠️ MANDATORY COMMIT - REFACTOR:**
+**⚠️ MANDATORY COMMIT + PUSH - REFACTOR:**
 ```bash
 git add src/
 git commit -m "$(cat <<'EOF'
@@ -195,6 +199,7 @@ refactor(TASK-ID): clean up implementation
 Refs TASK-ID
 EOF
 )"
+git push origin master
 ```
 
 **Repeat steps 5.1-5.3 for EACH scenario in .feature file.**

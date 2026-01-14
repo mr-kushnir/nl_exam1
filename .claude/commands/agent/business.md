@@ -428,24 +428,28 @@ Phases (TDD): `red`, `green`
 EOF
 ```
 
-### Step 8: Commit Documentation
+### Step 8: Commit and Push Documentation
 
-**⚠️ MANDATORY COMMIT:**
+**⚠️ MANDATORY COMMIT + PUSH:**
 
 ```bash
-git add README.md CLAUDE.md
+git add README.md CLAUDE.md tests/
 git commit -m "$(cat <<'EOF'
 docs(EPIC-ID): initialize project documentation
 
 - Created README.md with setup and usage instructions
 - Created CLAUDE.md with AI workflow documentation
+- Created tests/features/ with .feature files
+- Created tests/steps/ with step definition stubs
 - Project structure documented
-- Deployment instructions added
 
 Refs EPIC-ID
 EOF
 )"
+git push origin master
 ```
+
+**Rule: `git commit` → `git push` — always together, small iterations.**
 
 ### Step 9: Report to Epic
 
