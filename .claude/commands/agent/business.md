@@ -1,28 +1,38 @@
-BUSINESS Agent: Analyze Epic → Create BDD → Create Subtasks → Initialize Documentation
+BUSINESS Agent: Analyze Epic → Create BDD (KB + Local) → Create Subtasks → Initialize Documentation
 
 **Input:** Epic ID (e.g., NLE-1)
 
 ## CRITICAL REQUIREMENTS
 
-⚠️ **MANDATORY ACTIONS** ⚠️
+⚠️ **MANDATORY PARALLEL WORK** ⚠️
 
-The BUSINESS agent MUST:
-1. **Analyze Epic** - Understand requirements and break into features
-2. **Create BDD Articles** - Gherkin scenarios for each feature
-3. **Create Subtasks** - YouTrack tasks linked to Epic
-4. **Initialize README.md** - Project description and setup instructions
-5. **Initialize CLAUDE.md** - AI workflow documentation
-6. **Commit Documentation** - Git commit with initial docs
+The BUSINESS agent works with **THREE systems simultaneously**:
 
-**NO moving forward without documentation initialization.**
+| System | Purpose | Tool |
+|--------|---------|------|
+| **YouTrack Tasks** | Task management | API |
+| **YouTrack KB** | BDD source of truth | API (`scripts/youtrack_kb.py`) |
+| **Local Files** | Tests execution | File system |
+
+### Actions:
+1. **Analyze Epic** - Understand requirements, break into features
+2. **Create BDD in KB** - Gherkin scenarios (source of truth)
+3. **Create Local .feature** - Mirror KB content (for pytest-bdd)
+4. **Create Step stubs** - For DEVELOPER to implement
+5. **Create Subtasks** - Link to Epic + reference KB article
+6. **Initialize Docs** - README.md, CLAUDE.md
+7. **Commit + Push** - Immediately to GitHub
+
+**⚠️ KB and Local files MUST be identical. KB is source of truth.**
 
 ---
 
 ## Integration
 
-- **Tasks**: YouTrack API
-- **Knowledge Base**: REST API (`scripts/youtrack_kb.py`)
-- **Git**: Bash commands
+- **Tasks**: YouTrack API (create subtasks, update states)
+- **Knowledge Base**: REST API (`scripts/youtrack_kb.py`) - BDD source
+- **Local Files**: tests/features/*.feature, tests/steps/*.py
+- **Git**: Bash commands (commit + push immediately)
 
 ---
 
@@ -88,11 +98,24 @@ EOF
 touch tests/__init__.py tests/features/__init__.py tests/steps/__init__.py
 ```
 
-### Step 5: Create BDD Articles in KB and Feature Files
+### Step 5: Create BDD (KB + Local) - PARALLEL
 
-For EACH feature:
+⚠️ **For EACH feature, create in BOTH systems simultaneously:**
 
-**5.1 Create KB Article:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Feature: "User Authentication"                              │
+│                                                              │
+│  5.1 KB Article ──────────► NLE-A-5 (source of truth)       │
+│  5.2 Local .feature ──────► tests/features/auth.feature     │
+│  5.3 Step stubs ──────────► tests/steps/test_auth.py        │
+│  5.4 Commit + Push ───────► GitHub (immediately)            │
+│                                                              │
+│  Repeat for each feature...                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**5.1 Create KB Article (source of truth):**
 
 ```bash
 python scripts/youtrack_kb.py create "BDD: Feature Name" "# BDD: Feature Name
@@ -179,7 +202,15 @@ def then_expected_result():
 EOF
 ```
 
-Repeat 5.1-5.3 for each feature.
+**5.4 Commit + Push this feature immediately:**
+
+```bash
+git add tests/features/feature_name.feature tests/steps/test_feature_name.py
+git commit -m "feat(EPIC-ID): add BDD for feature_name (KB: ARTICLE-ID)"
+git push origin main
+```
+
+**Repeat 5.1-5.4 for EACH feature before moving to Step 6.**
 
 ### Step 6: Create Subtasks
 
@@ -206,15 +237,22 @@ data = {
 Feature description
 
 ## BDD Specification
-**Knowledge Base Article:** ARTICLE-ID
 
+### Source of Truth (KB)
+**Knowledge Base Article:** ARTICLE-ID
 \`\`\`bash
 python scripts/youtrack_kb.py bdd ARTICLE-ID
 \`\`\`
 
+### Local Files (for tests)
+- **Feature:** tests/features/feature_name.feature
+- **Steps:** tests/steps/test_feature_name.py
+
 ## Definition of Done
-- [ ] All Gherkin scenarios pass as tests
+- [ ] Step definitions implemented (not stubs)
+- [ ] All BDD scenarios pass: `pytest tests/steps/test_feature_name.py -v`
 - [ ] Coverage >= 70%
+- [ ] KB and local .feature files are in sync
 - [ ] No security vulnerabilities
 '''
 }

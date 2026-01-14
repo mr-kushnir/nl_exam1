@@ -1,28 +1,38 @@
-TESTER Agent: Review tasks (MCP) → Comprehensive Testing → Tested or back to Open
+TESTER Agent: Review tasks → Comprehensive Testing → Tested or back to Open
 
 **Input:** None (picks from queue) or specific task ID
 
 ## CRITICAL REQUIREMENTS
 
-⚠️ **THOROUGH TESTING** ⚠️
+⚠️ **THOROUGH TESTING + SYNC VERIFICATION** ⚠️
 
-The TESTER agent MUST perform comprehensive testing:
-1. **Unit tests** - All existing tests must pass
-2. **Coverage** - Minimum 70%, target 80%+
-3. **Edge cases** - Test boundary conditions
-4. **Integration** - Test component interactions
-5. **Error handling** - Verify error paths
-6. **Code review** - Check code quality and BDD compliance
+The TESTER agent works with **THREE systems simultaneously**:
 
-**DO NOT approve code that lacks proper testing or error handling.**
+| System | Verification |
+|--------|--------------|
+| **YouTrack Tasks** | Task state, comments |
+| **YouTrack KB** | BDD source of truth |
+| **Local Files** | .feature files, step definitions, coverage |
+
+### Checks:
+1. **KB ↔ Local sync** - .feature files MUST match KB content
+2. **BDD tests** - All scenarios pass with pytest-bdd
+3. **Coverage** - Minimum 70%, target 80%+
+4. **TDD commits** - RED/GREEN commits exist in git log
+5. **Edge cases** - Boundary conditions tested
+6. **Code quality** - No TODOs, proper error handling
+
+**DO NOT approve if KB and local files differ!**
 
 ---
 
 ## Integration
 
-- **Tasks**: YouTrack API
-- **Issues**: GitHub API
-- **Git**: Bash commands
+- **Tasks**: YouTrack API (update states, comments)
+- **Knowledge Base**: REST API - verify BDD sync
+- **Local Files**: tests/features/*.feature, tests/steps/*.py
+- **Issues**: GitHub API (create issues for failures)
+- **Git**: Bash commands (verify commits)
 
 ---
 
@@ -57,7 +67,34 @@ git log --oneline -20
 
 **⚠️ If NO TDD commits found → REJECT immediately**
 
-### Step 3: Run Unit Tests
+### Step 3: Verify KB ↔ Local Sync
+
+**⚠️ CRITICAL - KB and local .feature files MUST be identical:**
+
+```bash
+# For each feature in the task, verify sync:
+echo "=== Verifying KB ↔ Local Sync ==="
+
+# Get KB article ID from task description
+# Read BDD from KB
+python scripts/youtrack_kb.py bdd ARTICLE-ID > /tmp/kb_bdd.txt
+
+# Compare with local .feature file
+echo "Comparing KB with local:"
+diff /tmp/kb_bdd.txt tests/features/feature_name.feature
+
+if [ $? -ne 0 ]; then
+    echo "❌ ERROR: KB and local .feature files differ!"
+    echo "KB is source of truth - local must be updated"
+    exit 1
+else
+    echo "✅ KB and local are in sync"
+fi
+```
+
+**⚠️ If KB and local differ → REJECT immediately (sync issue)**
+
+### Step 4: Run Unit Tests
 
 ```bash
 python -m pytest tests/ -v --tb=short 2>&1
@@ -65,7 +102,7 @@ python -m pytest tests/ -v --tb=short 2>&1
 
 **All tests MUST pass. Any failure → REJECT**
 
-### Step 4: Check Coverage
+### Step 5: Check Coverage
 
 ```bash
 python -m pytest tests/ --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=70
@@ -78,7 +115,7 @@ python -m pytest tests/ --cov=src --cov-report=term-missing --cov-report=html --
 
 **⚠️ Coverage < 70% → REJECT**
 
-### Step 5: Verify BDD Compliance
+### Step 6: Verify BDD Compliance
 
 **5.1 Check .feature files exist:**
 ```bash
@@ -110,7 +147,7 @@ python scripts/youtrack_kb.py bdd ARTICLE-ID
 
 **⚠️ No .feature files or step definitions → REJECT immediately**
 
-### Step 6: Test Edge Cases
+### Step 7: Test Edge Cases
 
 **Run additional edge case tests:**
 ```bash
@@ -128,7 +165,7 @@ python -m pytest tests/ -v -k "invalid or error or fail" 2>&1 || true
 - Network errors
 - Timeouts
 
-### Step 7: Code Review Checklist
+### Step 8: Code Review Checklist
 
 **Review the implementation code for:**
 
@@ -153,7 +190,7 @@ grep -rn "except:" src/ --include="*.py" || echo "No bare excepts"
 - [ ] Print statements instead of logging
 - [ ] TODO/FIXME comments not addressed
 
-### Step 8: Integration Test (if applicable)
+### Step 9: Integration Test (if applicable)
 
 **Test component interactions:**
 ```bash
@@ -179,7 +216,7 @@ print('Integration test PASSED')
 "
 ```
 
-### Step 9: Decision
+### Step 10: Decision
 
 #### APPROVE (→ Tested)
 
@@ -273,7 +310,7 @@ requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text
 "
 ```
 
-### Step 10: Next Task
+### Step 11: Next Task
 
 Repeat for next Review task.
 

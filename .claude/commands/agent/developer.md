@@ -1,17 +1,26 @@
-DEVELOPER Agent: Pick Open tasks (MCP) → Read BDD from KB (API) → TDD → Review
+DEVELOPER Agent: Pick Open tasks → Read BDD (KB + Local) → TDD → Review
 
 **Input:** None (picks from queue) or specific task ID
 
 ## CRITICAL REQUIREMENTS
 
-⚠️ **MANDATORY GIT COMMITS + PUSH** ⚠️
+⚠️ **MANDATORY PARALLEL WORK** ⚠️
 
-The DEVELOPER agent MUST commit AND push after EVERY TDD phase:
-1. **RED** - Commit + push failing test BEFORE implementation
-2. **GREEN** - Commit + push working implementation
-3. **REFACTOR** - Commit + push refactored code (if any)
+The DEVELOPER agent works with **THREE systems simultaneously**:
 
-**NO EXCEPTIONS. Each commit + push must happen IMMEDIATELY after completing the phase.**
+| System | Purpose | Tool |
+|--------|---------|------|
+| **YouTrack Tasks** | Track progress | API |
+| **YouTrack KB** | BDD source of truth | API (`scripts/youtrack_kb.py`) |
+| **Local Files** | Implement & run tests | File system + pytest-bdd |
+
+### TDD Workflow:
+1. **Read BDD from KB** - Source of truth for scenarios
+2. **Verify local .feature** - Must match KB content
+3. **Implement step definitions** - Fill in the stubs
+4. **RED** - Run tests, verify they fail → commit + push
+5. **GREEN** - Implement service → commit + push
+6. **REFACTOR** - Clean up → commit + push
 
 **Rule: `git commit` → `git push` — always together, small iterations.**
 
@@ -19,9 +28,10 @@ The DEVELOPER agent MUST commit AND push after EVERY TDD phase:
 
 ## Integration
 
-- **Tasks**: YouTrack MCP (native)
-- **Knowledge Base**: REST API for BDD scenarios
-- **Git**: Bash commands (git add, git commit, git push)
+- **Tasks**: YouTrack API (update states, comments)
+- **Knowledge Base**: REST API - BDD source of truth
+- **Local Files**: tests/features/*.feature, tests/steps/*.py, src/
+- **Git**: Bash commands (commit + push immediately)
 
 ---
 
@@ -71,19 +81,39 @@ requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text
 "
 ```
 
-### Step 4: Read BDD from KB and Verify Structure
+### Step 4: Read BDD from KB and Verify Sync with Local
 
 ```bash
 # Ensure pytest-bdd is installed
 pip install pytest-bdd --quiet
+```
 
-# Read BDD scenarios from KB
+**4.1 Read BDD from KB (source of truth):**
+```bash
 python scripts/youtrack_kb.py bdd ARTICLE-ID
+```
 
-# Verify .feature file exists (created by BUSINESS)
-ls tests/features/*.feature
+**4.2 Verify local .feature file exists:**
+```bash
+cat tests/features/feature_name.feature
+```
 
-# Verify step definitions stub exists (created by BUSINESS)
+**4.3 Compare KB and local - MUST be identical:**
+```bash
+# Get KB content
+python scripts/youtrack_kb.py bdd ARTICLE-ID > /tmp/kb_bdd.txt
+
+# Compare with local
+diff /tmp/kb_bdd.txt tests/features/feature_name.feature || echo "WARNING: KB and local differ!"
+```
+
+**⚠️ If KB and local differ:**
+- KB is source of truth
+- Update local .feature to match KB
+- Commit + push the sync
+
+**4.4 Verify step definitions stub exists:**
+```bash
 ls tests/steps/test_*.py
 ```
 
@@ -214,7 +244,49 @@ python -m pytest tests/ -v --cov=src --cov-report=term-missing
 - All tests MUST pass
 - Coverage MUST be >= 70%
 
-### Step 7: Push and Move to Review
+### Step 7: Update CLAUDE.md (Development Log)
+
+**⚠️ Document AI-assisted development progress:**
+
+```bash
+# Append development log entry to CLAUDE.md
+cat >> CLAUDE.md << 'EOF'
+
+---
+
+## Development Log: TASK-ID
+
+**Date:** $(date +%Y-%m-%d)
+**Agent:** DEVELOPER
+
+### Implementation Summary
+- **Feature:** feature_name
+- **KB Article:** ARTICLE-ID
+- **Scenarios:** X implemented
+
+### TDD Commits
+| Phase | Commit | Description |
+|-------|--------|-------------|
+| RED | abc123 | test(TASK-ID): failing test for scenario |
+| GREEN | def456 | feat(TASK-ID): implement scenario |
+| REFACTOR | ghi789 | refactor(TASK-ID): cleanup |
+
+### Files Changed
+- tests/steps/test_feature_name.py
+- src/services/feature_service.py
+
+### Test Results
+- BDD Scenarios: X passing
+- Coverage: XX%
+
+EOF
+
+git add CLAUDE.md
+git commit -m "docs(TASK-ID): update development log"
+git push origin main
+```
+
+### Step 8: Move to Review
 
 ```bash
 git push origin main
@@ -246,7 +318,7 @@ requests.post(f'{url}/api/issues/TASK-ID/comments', headers=headers, json={'text
 "
 ```
 
-### Step 8: Next Task
+### Step 9: Next Task
 
 Repeat for next Open task.
 
