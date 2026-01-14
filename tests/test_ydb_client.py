@@ -16,17 +16,32 @@ class TestYDBClientParameterizedQueries:
         """
         client = YDBClient()
 
-        # Malicious input that would break string concatenation
-        malicious_input = {'user_id': '"; DROP TABLE users; --'}
+        # Malicious input in a string field (not user_id/amount which are Int64)
+        malicious_input = {'category': '"; DROP TABLE users; --'}
 
         # The method should build a parameterized query, not string concat
-        # We verify this by checking the query structure
         query, params = client._build_select_query('expenses', malicious_input, 100)
 
         # Query should use parameter placeholders, not direct string values
         assert '"; DROP TABLE' not in query
-        assert '$user_id' in query or '$p_user_id' in query
+        assert '$p_category' in query
         assert 'DECLARE' in query
+
+    def test_int64_fields_reject_string_injection(self):
+        """Scenario: Int64 fields should reject string injection attempts.
+
+        Given a YDBClient instance
+        When I try to pass a malicious string to an Int64 field (user_id)
+        Then it should raise ValueError (type safety prevents injection)
+        """
+        client = YDBClient()
+
+        # Malicious input that would break string concatenation
+        malicious_input = {'user_id': '"; DROP TABLE users; --'}
+
+        # Int64 fields reject non-numeric input - this IS the security
+        with pytest.raises(ValueError):
+            client._build_select_query('expenses', malicious_input, 100)
 
     def test_select_without_where_is_safe(self):
         """Scenario: select() without WHERE should be safe."""

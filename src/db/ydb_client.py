@@ -100,6 +100,12 @@ class YDBClient:
             raise ValueError(f"Invalid table name: {table}")
         return table
 
+    def _get_ydb_type(self, key: str, value) -> str:
+        """Determine YDB type based on column name and value"""
+        if key in ('user_id', 'amount') or (isinstance(value, int) and not isinstance(value, bool)):
+            return 'Int64'
+        return 'Utf8'
+
     def _build_select_query(self, table: str, where: dict = None, limit: int = 100) -> Tuple[str, Optional[dict]]:
         """Build a parameterized SELECT query.
 
@@ -115,9 +121,13 @@ class YDBClient:
 
             for k, v in where.items():
                 param_name = f'p_{k}'
-                declares.append(f'DECLARE ${param_name} AS Utf8;')
+                ydb_type = self._get_ydb_type(k, v)
+                declares.append(f'DECLARE ${param_name} AS {ydb_type};')
                 conditions.append(f'{k} = ${param_name}')
-                params[f'${param_name}'] = str(v) if v is not None else ''
+                if ydb_type == 'Int64':
+                    params[f'${param_name}'] = int(v) if v is not None else 0
+                else:
+                    params[f'${param_name}'] = str(v) if v is not None else ''
 
             # nosec B608 - table is validated, values use parameterized placeholders ($p_field)
             query = f"{' '.join(declares)} SELECT * FROM {table} WHERE {' AND '.join(conditions)} LIMIT {limit}"
@@ -139,34 +149,53 @@ class YDBClient:
 
         for k, v in where.items():
             param_name = f'p_{k}'
-            declares.append(f'DECLARE ${param_name} AS Utf8;')
+            ydb_type = self._get_ydb_type(k, v)
+            declares.append(f'DECLARE ${param_name} AS {ydb_type};')
             conditions.append(f'{k} = ${param_name}')
-            params[f'${param_name}'] = str(v) if v is not None else ''
+            if ydb_type == 'Int64':
+                params[f'${param_name}'] = int(v) if v is not None else 0
+            else:
+                params[f'${param_name}'] = str(v) if v is not None else ''
 
         # nosec B608 - table is validated, values use parameterized placeholders ($p_field)
         query = f"{' '.join(declares)} DELETE FROM {table} WHERE {' AND '.join(conditions)}"
         return query, params
 
     def insert(self, table: str, data: dict) -> bool:
-        """Insert record into table"""
+        """Insert record into table with proper type handling"""
+        table = self._validate_table_name(table)
         columns = ', '.join(data.keys())
         placeholders = ', '.join(f'${k}' for k in data.keys())
-        
+
+        # Determine types based on values and column names
+        declares = []
+        params = {}
+
+        for k, v in data.items():
+            # Int64 for numeric fields
+            if k in ('user_id', 'amount') or (isinstance(v, int) and not isinstance(v, bool)):
+                declares.append(f'DECLARE ${k} AS Int64;')
+                params[f'${k}'] = int(v) if v is not None else 0
+            # Timestamp for datetime fields
+            elif k in ('created_at',) and v is not None:
+                declares.append(f'DECLARE ${k} AS Utf8;')
+                params[f'${k}'] = str(v)
+            # JSON for dict
+            elif isinstance(v, dict):
+                declares.append(f'DECLARE ${k} AS Utf8;')
+                params[f'${k}'] = json.dumps(v)
+            # Default to Utf8 (string)
+            else:
+                declares.append(f'DECLARE ${k} AS Utf8;')
+                params[f'${k}'] = str(v) if v is not None else ''
+
         query = f"""
-            DECLARE ${' DECLARE $'.join(f'{k} AS Utf8;' for k in data.keys())}
-            
+            {' '.join(declares)}
+
             UPSERT INTO {table} ({columns})
             VALUES ({placeholders});
         """
-        
-        # Convert values to proper types
-        params = {}
-        for k, v in data.items():
-            if isinstance(v, dict):
-                params[f'${k}'] = json.dumps(v)
-            else:
-                params[f'${k}'] = str(v) if v is not None else None
-        
+
         self.execute(query, params)
         return True
     
@@ -193,17 +222,25 @@ class YDBClient:
         conditions = []
         for k, v in where.items():
             param_name = f'w_{k}'
-            declares.append(f'DECLARE ${param_name} AS Utf8;')
+            ydb_type = self._get_ydb_type(k, v)
+            declares.append(f'DECLARE ${param_name} AS {ydb_type};')
             conditions.append(f'{k} = ${param_name}')
-            params[f'${param_name}'] = str(v) if v is not None else ''
+            if ydb_type == 'Int64':
+                params[f'${param_name}'] = int(v) if v is not None else 0
+            else:
+                params[f'${param_name}'] = str(v) if v is not None else ''
 
         # SET clause
         sets = []
         for k, v in data.items():
             param_name = f's_{k}'
-            declares.append(f'DECLARE ${param_name} AS Utf8;')
+            ydb_type = self._get_ydb_type(k, v)
+            declares.append(f'DECLARE ${param_name} AS {ydb_type};')
             sets.append(f'{k} = ${param_name}')
-            params[f'${param_name}'] = str(v) if v is not None else ''
+            if ydb_type == 'Int64':
+                params[f'${param_name}'] = int(v) if v is not None else 0
+            else:
+                params[f'${param_name}'] = str(v) if v is not None else ''
 
         # nosec B608 - table is validated, values use parameterized placeholders
         query = f"{' '.join(declares)} UPDATE {table} SET {', '.join(sets)} WHERE {' AND '.join(conditions)}"

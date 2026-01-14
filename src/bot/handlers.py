@@ -7,13 +7,9 @@ BDD Reference: NLE-A-11, NLE-A-15 (Confirmation Flow)
 import uuid
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
-from src.services.yagpt_service import YaGPTService, ParsedExpense, CATEGORY_KEYWORDS
+from src.services.yagpt_service import YaGPTService, ParsedExpense, CATEGORY_KEYWORDS, CATEGORIES
 from src.services.speech_service import SpeechService
 from src.services.expense_storage import ExpenseStorage, Expense
-
-
-# Available categories for selection
-CATEGORIES = ["Еда", "Транспорт", "Развлечения", "Подписки", "Здоровье", "Подарки", "Образование", "Одежда", "Другое"]
 
 
 class BotHandlers:
