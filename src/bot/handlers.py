@@ -25,6 +25,8 @@ class BotHandlers:
         self.storage = ExpenseStorage(use_memory=use_memory_db)
         # Pending expenses awaiting confirmation (user_id -> {expense_id: PendingExpense})
         self._pending_expenses: Dict[int, Dict[str, dict]] = {}
+        # User budgets (user_id -> budget_amount)
+        self._budgets: Dict[int, int] = {}
 
     async def handle_start(self, user_id: int) -> str:
         """Handle /start command"""
@@ -382,3 +384,87 @@ class BotHandlers:
             lines.append("\n_Данных за прошлую неделю нет_")
 
         return "\n".join(lines)
+
+    # ═══════════════════════════════════════════════════════════
+    # Budget Management (NLE-A-18)
+    # ═══════════════════════════════════════════════════════════
+
+    async def set_budget(self, user_id: int, amount: int) -> Dict[str, Any]:
+        """Set monthly budget for user"""
+        if amount <= 0:
+            return {"success": False, "message": "Бюджет должен быть больше 0"}
+
+        self._budgets[user_id] = amount
+
+        return {
+            "success": True,
+            "message": f"💰 Бюджет на месяц: {amount:,}₽\n\n"
+                       f"Буду следить за расходами и предупреждать о превышении.",
+        }
+
+    def get_user_budget(self, user_id: int) -> Optional[int]:
+        """Get user's budget"""
+        return self._budgets.get(user_id)
+
+    async def get_budget_status(self, user_id: int) -> Dict[str, Any]:
+        """Get budget status with progress"""
+        budget = self.get_user_budget(user_id)
+
+        if not budget:
+            return {
+                "success": True,
+                "message": "💰 Бюджет не установлен.\n\n"
+                           "Установите бюджет: `/budget 50000`",
+            }
+
+        # Get current month total
+        total_spent = self.storage.get_total(user_id)
+        remaining = budget - total_spent
+        percentage = min(100, (total_spent / budget) * 100)
+
+        # Build progress bar
+        bar_length = 10
+        filled = int(bar_length * percentage / 100)
+        bar = "█" * filled + "░" * (bar_length - filled)
+
+        lines = ["💰 *Бюджет на месяц:*\n"]
+        lines.append(f"[{bar}] {percentage:.0f}%\n")
+        lines.append(f"Потрачено: {total_spent:,}₽ из {budget:,}₽")
+
+        # Status messages based on percentage
+        if percentage >= 100:
+            overspent = total_spent - budget
+            lines.append(f"\n🔴 *Бюджет превышен на {overspent:,}₽*")
+        elif percentage >= 80:
+            lines.append(f"\n⚠️ *Внимание!* Израсходовано {percentage:.0f}% бюджета")
+            lines.append(f"Осталось: {remaining:,}₽")
+        elif percentage >= 50:
+            lines.append(f"\nОсталось: {remaining:,}₽")
+        else:
+            lines.append(f"\n✅ Осталось: {remaining:,}₽")
+
+        return {
+            "success": True,
+            "message": "\n".join(lines),
+            "percentage": percentage,
+            "spent": total_spent,
+            "budget": budget,
+            "remaining": remaining,
+        }
+
+    async def check_budget_warning(self, user_id: int) -> Optional[str]:
+        """Check if budget warning should be shown after adding expense"""
+        budget = self.get_user_budget(user_id)
+        if not budget:
+            return None
+
+        total = self.storage.get_total(user_id)
+        percentage = (total / budget) * 100
+
+        if percentage >= 100:
+            overspent = total - budget
+            return f"🔴 *Внимание!* Бюджет превышен на {overspent:,}₽"
+        elif percentage >= 80:
+            return f"⚠️ Израсходовано {percentage:.0f}% бюджета ({total:,}₽ из {budget:,}₽)"
+
+        return None
